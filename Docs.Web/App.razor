@@ -1,12 +1,11 @@
-﻿<Router AppAssembly="@typeof(App).Assembly">
-    <Found Context="routeData">
-        <RouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)" />
-        <FocusOnNavigate RouteData="@routeData" Selector="h1" />
-    </Found>
-    <NotFound>
-        <PageTitle>Not found</PageTitle>
-        <LayoutView Layout="@typeof(MainLayout)">
-            <p role="alert">Sorry, there's nothing at this address.</p>
-        </LayoutView>
-    </NotFound>
-</Router>
+﻿@using Docs.Web.Shared
+@using Microsoft.AspNetCore.Components.Authorization
+@using ShiftSoftware.ShiftBlazor.Components
+
+<DefaultApp AppTitle="Shift Framework Docs"
+            AppAssembly="@typeof(App).Assembly">
+
+    <NavMenuTemplate >
+        <NavMenu />
+    </NavMenuTemplate>
+</DefaultApp>
