@@ -1,0 +1,63 @@
+﻿@using MudBlazor
+@using Microsoft.AspNetCore.Components.Routing
+
+@implements IDisposable
+@inject NavigationManager NavigationManager
+
+<MudNavMenu Color="Color.Warning">
+    <MudNavGroup Title="Getting Started" Expanded="@(IsActive("getting-started"))">
+        <MudNavLink Href="/getting-started/installation" Match="NavLinkMatch.Prefix">Installation</MudNavLink>
+    </MudNavGroup>
+
+    <MudNavLink Href="/overview" Match="NavLinkMatch.All">Overview</MudNavLink>
+
+    <MudNavGroup Title="Components" Expanded="@(IsActive("components"))">
+        <MudNavLink Href="/components/shift-blazor" Match="NavLinkMatch.Prefix">Overview</MudNavLink>
+        <MudNavLink Href="/components/shift-auto-complete" Match="NavLinkMatch.Prefix">Shift Auto Complete</MudNavLink>
+    </MudNavGroup>
+
+    <MudNavGroup Title="Entities & Repositories" Expanded="@(IsActive("data"))">
+        <MudNavLink Href="/data/shift-entity" Match="NavLinkMatch.Prefix">Shift Entity</MudNavLink>
+        <MudNavLink Href="/data/shift-repository" Match="NavLinkMatch.Prefix">Shift Repository</MudNavLink>
+    </MudNavGroup>
+
+    <MudNavGroup Title="AspNetCore APIs" Expanded="@(IsActive("asp"))">
+        <MudNavLink Href="/asp/shift-entity-controller" Match="NavLinkMatch.Prefix">Controllers</MudNavLink>
+    </MudNavGroup>
+
+    <MudNavGroup Title="TypeAuth" Expanded="@(IsActive("type-auth"))">
+        <MudNavLink Href="/type-auth/actions" Match="NavLinkMatch.Prefix">Actions</MudNavLink>
+    </MudNavGroup>
+</MudNavMenu>
+
+@code {
+    protected override void OnInitialized()
+    {
+        NavigationManager.LocationChanged += OnLocationChanged;
+    }
+
+    private void OnLocationChanged(object sender, LocationChangedEventArgs e)
+    {
+        InvokeAsync(StateHasChanged);
+    }
+
+    private bool IsActive(string href, bool exact = false)
+    {
+        var uri = NavigationManager.Uri;
+        var relativePath = NavigationManager.ToBaseRelativePath(uri).TrimEnd('/');
+
+        href = href.TrimStart('/');
+
+        if (exact)
+        {
+            return string.Equals(relativePath, href, StringComparison.OrdinalIgnoreCase);
+        }
+
+        return relativePath.StartsWith(href, StringComparison.OrdinalIgnoreCase);
+    }
+
+    public void Dispose()
+    {
+        NavigationManager.LocationChanged -= OnLocationChanged;
+    }
+}

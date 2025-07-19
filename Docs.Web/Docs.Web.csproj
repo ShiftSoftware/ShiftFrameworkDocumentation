@@ -19,8 +19,4 @@
 		<ProjectReference Include="..\..\ShiftBlazor\ShiftBlazor\ShiftBlazor.csproj" Condition="Exists('..\..\ShiftBlazor\ShiftBlazor\ShiftBlazor.csproj')" />
 	</ItemGroup>
 
-	<ItemGroup>
-	  <Folder Include="Layout\" />
-	</ItemGroup>
-
 </Project>

@@ -1,0 +1,135 @@
+﻿@page "/components/shift-auto-complete"
+
+@using MudBlazor
+@using ShiftSoftware.ShiftBlazor.Components
+@using Docs.Shared.Customers
+
+<PageTitle>Shift Auto Complete | Shift Framework</PageTitle>
+
+<MudContainer Class="mt-15">
+    <MudText Typo="Typo.h4">Shift Auto Complete</MudText>
+
+    <MudText>Search and Select <MudLink Color="Color.Warning">Shift Entities</MudLink> from a <MudLink Color="Color.Warning">Shift Entity Controller</MudLink> End-point.</MudText>
+</MudContainer>
+
+<MudContainer Class="mt-15" MaxWidth="MaxWidth.False" Style="float: left;">
+
+    <MudText Typo="Typo.h6">Basic Usage</MudText>
+    <MudPaper Elevation="1" Class="mt-1">
+        <div class="d-flex">
+            <MudSpacer />
+            <MudButton Variant="Variant.Text" Color="Color.Warning" StartIcon="@Icons.Material.Filled.Code">
+                Code
+            </MudButton>
+        </div>
+
+        <div class="pa-5">
+            <ShiftAutocomplete EntitySet="Customer"
+                               Label="Customer"
+                               TEntitySet="CustomerListDTO" />
+        </div>
+    </MudPaper>
+
+    <div class="mt-10"></div>
+
+    <MudText Typo="Typo.h6">Clearable</MudText>
+    <MudPaper Elevation="1" Class="mt-1">
+        <div class="d-flex">
+            <MudSpacer />
+            <MudButton Variant="Variant.Text" Color="Color.Warning" StartIcon="@Icons.Material.Filled.Code">
+                Code
+            </MudButton>
+        </div>
+
+        <div class="pa-5">
+            <ShiftAutocomplete EntitySet="Customer"
+                               Label="Customer"
+                               Clearable
+                               TEntitySet="CustomerListDTO" />
+        </div>
+    </MudPaper>
+
+    <div class="mt-10"></div>
+
+    <MudText Typo="Typo.h6">Multi Select</MudText>
+    <MudPaper Elevation="1" Class="mt-1">
+        <div class="d-flex">
+            <MudSpacer />
+            <MudButton Variant="Variant.Text" Color="Color.Warning" StartIcon="@Icons.Material.Filled.Code">
+                Code
+            </MudButton>
+        </div>
+
+        <div class="pa-5">
+            <ShiftAutocomplete EntitySet="Customer"
+                               Label="Customer"
+                               MultiSelect
+                               TEntitySet="CustomerListDTO" />
+        </div>
+    </MudPaper>
+
+    <div class="mt-10"></div>
+
+    <MudText Typo="Typo.h6">Multi Select (Grouped Tags)</MudText>
+    <MudPaper Elevation="1" Class="mt-1">
+        <div class="d-flex">
+            <MudSpacer />
+            <MudButton Variant="Variant.Text" Color="Color.Warning" StartIcon="@Icons.Material.Filled.Code">
+                Code
+            </MudButton>
+        </div>
+
+        <div class="pa-5">
+            <ShiftAutocomplete EntitySet="Customer"
+                               Label="Customer"
+                               MultiSelect
+                               SelectedValueCounter
+                               TEntitySet="CustomerListDTO" />
+        </div>
+    </MudPaper>
+
+    <div class="mt-10"></div>
+
+    <MudText Typo="Typo.h6">Custom Text Template</MudText>
+    <MudPaper Elevation="1" Class="mt-1">
+        <div class="d-flex">
+            <MudSpacer />
+            <MudButton Variant="Variant.Text" Color="Color.Warning" StartIcon="@Icons.Material.Filled.Code">
+                Code
+            </MudButton>
+        </div>
+
+        <div class="pa-5">
+            <ShiftAutocomplete EntitySet="Customer"
+                               Label="Customer"
+                               MultiSelect
+                               TEntitySet="CustomerListDTO">
+
+                <DropdownItemTemplate>
+                    @{
+                        var customer = (context.Item as CustomerListDTO)!;
+                    }
+
+                    <MudIcon Icon="@(context.IsSelected? Icons.Material.Filled.CheckBox : Icons.Material.Outlined.CheckBoxOutlineBlank)" />
+
+                    <MudAvatar Class="mt-1 mb-1 me-1" Color="@(Enum.Parse<Color>(customer.AvatarColor))" Size="Size.Small">
+                        <MudIcon Icon="@(customer.AvatarIcon)" Size="Size.Small" />
+                    </MudAvatar>
+
+                    <MudText Inline>@customer.Name</MudText>
+                </DropdownItemTemplate>
+                <SelectedValuesTemplate>
+                    @{
+                        var customer = (context.Item.Data as CustomerListDTO)!;
+                    }
+
+                    <MudAvatar Class="mt-1 mb-1 me-1" Color="@(Enum.Parse<Color>(customer.AvatarColor))" Size="Size.Small">
+                        <MudIcon Icon="@(customer.AvatarIcon)" Size="Size.Small"/>
+                    </MudAvatar>
+                </SelectedValuesTemplate>
+            </ShiftAutocomplete>
+        </div>
+    </MudPaper>
+
+    <div class="mt-10"></div>
+</MudContainer>
