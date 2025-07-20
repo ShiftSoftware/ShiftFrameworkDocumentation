@@ -1,0 +1,34 @@
+﻿@attribute [Route($"/{nameof(CustomerForm)}/{{Key?}}")]
+
+@using Docs.Shared.Customers
+@using ShiftSoftware.ShiftBlazor.Components
+
+@inherits ShiftForm<CustomerForm, CustomerDTO>
+
+<ShiftEntityForm @bind-Mode="Mode"
+                 @bind-Value="TheItem"
+                 @ref="FormContainer"
+                 Action="Customer"
+                 Title="Customer"
+                 TypeAuthAction="null"
+                 @bind-Key="@Key">
+
+    <MudTextFieldExtended OnlyValidateIfDirty="true"
+                          Label="Name"
+                          @bind-Value="TheItem.Name"
+                          For="@(() => TheItem.Name)" />
+</ShiftEntityForm>
+
+
+@code {
+    [Parameter]
+    public string? Name { get; set; }
+
+    protected override void OnInitialized()
+    {
+        if (!string.IsNullOrWhiteSpace(Name))
+        {
+            TheItem.Name = Name;
+        }
+    }
+}

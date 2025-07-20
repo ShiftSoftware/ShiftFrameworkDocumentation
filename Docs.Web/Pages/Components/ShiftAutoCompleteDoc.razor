@@ -1,5 +1,6 @@
 ﻿@page "/components/shift-auto-complete"
 
+@using Docs.Web.Pages.Examples
 @using MudBlazor
 @using ShiftSoftware.ShiftBlazor.Components
 @using Docs.Shared.Customers
@@ -90,7 +91,7 @@
 
     <div class="mt-10"></div>
 
-    <MudText Typo="Typo.h6">Custom Text Template</MudText>
+    <MudText Typo="Typo.h6">Custom Templates</MudText>
     <MudPaper Elevation="1" Class="mt-1">
         <div class="d-flex">
             <MudSpacer />
@@ -124,12 +125,70 @@
                     }
 
                     <MudAvatar Class="mt-1 mb-1 me-1" Color="@(Enum.Parse<Color>(customer.AvatarColor))" Size="Size.Small">
-                        <MudIcon Icon="@(customer.AvatarIcon)" Size="Size.Small"/>
+                        <MudIcon Icon="@(customer.AvatarIcon)" Size="Size.Small" />
                     </MudAvatar>
                 </SelectedValuesTemplate>
             </ShiftAutocomplete>
         </div>
     </MudPaper>
+
+    <div class="mt-10"></div>
+
+    <MudText Typo="Typo.h6">Shift Form Integration</MudText>
+    <MudPaper Elevation="1" Class="mt-1">
+        <div class="d-flex">
+            <MudSpacer />
+            <MudButton Variant="Variant.Text" Color="Color.Warning" StartIcon="@Icons.Material.Filled.Code">
+                Code
+            </MudButton>
+        </div>
+
+        <div class="pa-5">
+            <ShiftAutocomplete EntitySet="Customer"
+                               Label="Customer"
+                               QuickAddParameterName="@nameof(CustomerDTO.Name)"
+                               QuickAddComponentType="typeof(CustomerForm)"
+                               TEntitySet="CustomerListDTO" />
+        </div>
+    </MudPaper>
+
+    <div class="mt-10"></div>
+
+    <MudText Typo="Typo.h6">Shift Form Integration</MudText>
+    <MudPaper Elevation="1" Class="mt-1">
+        <div class="d-flex">
+            <MudSpacer />
+            <MudButton Variant="Variant.Text" Color="Color.Warning" StartIcon="@Icons.Material.Filled.Code">
+                Code
+            </MudButton>
+        </div>
+
+        <div class="pa-5">
+            <ShiftAutocomplete EntitySet="Customer"
+                               Label="Customer"
+                               QuickAddParameterName="@nameof(CustomerDTO.Name)"
+                               QuickAddComponentType="typeof(CustomerForm)"
+                               TEntitySet="CustomerListDTO" />
+        </div>
+    </MudPaper>
+
+    <div class="mt-10"></div>
+
+    <MudText Typo="Typo.h6">Shift List Integration (Filtering)</MudText>
+    <MudPaper Elevation="1" Class="mt-1">
+        <div class="d-flex">
+            <MudSpacer />
+            <MudButton Variant="Variant.Text" Color="Color.Warning" StartIcon="@Icons.Material.Filled.Code">
+                Code
+            </MudButton>
+        </div>
+
+        <div class="pa-5">
+            <InvoiceList />
+        </div>
+    </MudPaper>
+
+    <div class="mt-10"></div>
 
     <div class="mt-10"></div>
 </MudContainer>

@@ -12,7 +12,7 @@
         <MudImage Src="shift-full.png" Height="18" Class="pe-5" />
 
         <MudButton Href="/getting-started/installation" Color="@((IsActive("getting-started") ? Color.Warning : Color.Default))" Variant="Variant.Text">Get Started</MudButton>
-        <MudButton Href="/overview" Color="@((IsActive("overview") ? Color.Warning : Color.Default))" Variant="Variant.Text">Docs</MudButton>
+        <MudButton Href="/" Color="@((IsActive("", true) ? Color.Warning : Color.Default))" Variant="Variant.Text">Docs</MudButton>
         <MudButton Href="/components/shift-blazor" Color="@((IsActive("components") ? Color.Warning : Color.Default))" Variant="Variant.Text">Components</MudButton>
         <MudSpacer />
     </MudAppBar>

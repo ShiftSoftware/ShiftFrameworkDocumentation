@@ -51,10 +51,10 @@ mvcBuilder.AddShiftEntityWeb(x =>
 //    o.AddActionTree<ShiftSoftware.ShiftEntity.Core.AzureStorageActionTree>();
 //});
 
-if (builder.Environment.IsDevelopment())
-{
-    builder.Services.AddRazorPages();
-}
+
+
+builder.Services.AddRazorPages();
+
 
 //builder.Services.AddAzureClients(clientBuilder =>
 //{
@@ -90,13 +90,12 @@ app.MapControllers();
 
 app.UseCors(x => x.WithOrigins("*").AllowAnyMethod().AllowAnyHeader());
 
-if (app.Environment.IsDevelopment())
-{
-    app.UseBlazorFrameworkFiles();
-    app.UseStaticFiles();
 
-    app.MapRazorPages();
-    app.MapFallbackToFile("index.html");
-}
+app.UseBlazorFrameworkFiles();
+app.UseStaticFiles();
+
+app.MapRazorPages();
+app.MapFallbackToFile("index.html");
+
 
 app.Run();

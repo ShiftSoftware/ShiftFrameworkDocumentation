@@ -1,0 +1,29 @@
+﻿@attribute [Route($"/{nameof(InvoiceList)}")]
+
+@using ShiftSoftware.ShiftBlazor.Components
+@using ShiftSoftware.ShiftIdentity.Core.DTOs.City
+@using System.Linq.Expressions;
+@using Shared.Invoice
+@using Shared.Customers
+
+<ShiftList EntitySet="Invoice"
+           Title="Invoice List"
+           T="InvoiceListDTO"
+           Dense
+           EnableFilterPanel
+           FilterPanelDefaultOpen
+           ShowIDColumn="true"
+           EnableExport>
+
+    <ForeignFilter EntitySet="Customer" DTOType="typeof(CustomerListDTO)" Label="Customer" Property="x => x.CustomerID" lg="12" md="12" sm="12" xs="12" />
+
+    <ForeignColumn Property="x => x.CustomerID"
+                   Title="Customer"
+                   T="InvoiceListDTO"
+                   TEntity="CustomerListDTO"
+                   TProperty="string"
+                   EntitySet="Customer" />
+</ShiftList>
+
+@code {
+}
