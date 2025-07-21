@@ -11,4 +11,9 @@ public class CustomerRepository : ShiftRepository<DB, Customer, CustomerListDTO,
     {
 
     }
+
+    public override async Task SaveChangesAsync(bool raiseBeforeCommitTriggers = false)
+    {
+        await base.SaveChangesAsync(false);
+    }
 }

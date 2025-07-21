@@ -1,7 +1,10 @@
 ﻿@attribute [Route($"/{nameof(CustomerForm)}/{{Key?}}")]
 
 @using Docs.Shared.Customers
+@using MudBlazor
 @using ShiftSoftware.ShiftBlazor.Components
+@using System.Reflection
+@using static MudBlazor.Icons
 
 @inherits ShiftForm<CustomerForm, CustomerDTO>
 
@@ -17,12 +20,47 @@
                           Label="Name"
                           @bind-Value="TheItem.Name"
                           For="@(() => TheItem.Name)" />
+
+    <MudSelectExtended T="string"
+                       @bind-Value="TheItem.AvatarIcon"
+                       Label="Avatar"
+                       For="() => TheItem.AvatarIcon">
+        @foreach (var icon in Icons.Take(100))
+        {
+            <MudSelectItem Value="@icon">
+                <MudIcon Size="Size.Small" Icon="@icon"></MudIcon>
+            </MudSelectItem>
+        }
+    </MudSelectExtended>
+
+    <MudSelectExtended T="int"
+                       Label="Avatar Color"
+                       @bind-Value="TheItem.AvatarColor"
+                       For="() => TheItem.AvatarColor">
+        <MudSelectItem Value="@((int)Color.Default)"><MudAvatar Size="Size.Small" Color="@Color.Default"></MudAvatar> Default</MudSelectItem>
+        <MudSelectItem Value="@((int)Color.Primary)"><MudAvatar Size="Size.Small" Color="@Color.Primary"></MudAvatar> Primary</MudSelectItem>
+        <MudSelectItem Value="@((int)Color.Secondary)"><MudAvatar Size="Size.Small" Color="@Color.Secondary"></MudAvatar> Secondary</MudSelectItem>
+        <MudSelectItem Value="@((int)Color.Tertiary)"><MudAvatar Size="Size.Small" Color="@Color.Tertiary"></MudAvatar> Tertiary</MudSelectItem>
+        <MudSelectItem Value="@((int)Color.Info)"><MudAvatar Size="Size.Small" Color="@Color.Info"></MudAvatar> Info</MudSelectItem>
+        <MudSelectItem Value="@((int)Color.Success)"><MudAvatar Size="Size.Small" Color="@Color.Success"></MudAvatar> Success</MudSelectItem>
+        <MudSelectItem Value="@((int)Color.Warning)"><MudAvatar Size="Size.Small" Color="@Color.Warning"></MudAvatar> Warning</MudSelectItem>
+        <MudSelectItem Value="@((int)Color.Error)"><MudAvatar Size="Size.Small" Color="@Color.Error"></MudAvatar> Error</MudSelectItem>
+        <MudSelectItem Value="@((int)Color.Dark)"><MudAvatar Size="Size.Small" Color="@Color.Dark"></MudAvatar> Dark</MudSelectItem>
+        <MudSelectItem Value="@((int)Color.Surface)"><MudAvatar Size="Size.Small" Color="@Color.Surface"></MudAvatar> Surface</MudSelectItem>
+    </MudSelectExtended>
+
 </ShiftEntityForm>
 
 
 @code {
     [Parameter]
     public string? Name { get; set; }
+
+    List<string> Icons = typeof(Material.Filled)
+            .GetFields(BindingFlags.Public | BindingFlags.Static | BindingFlags.FlattenHierarchy)
+            .Where(f => f.IsLiteral && !f.IsInitOnly && f.FieldType == typeof(string))
+            .Select(f => (string)f.GetRawConstantValue()!)
+            .ToList();
 
     protected override void OnInitialized()
     {

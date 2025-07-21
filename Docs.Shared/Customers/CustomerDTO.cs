@@ -9,4 +9,9 @@ public class CustomerDTO : ShiftEntityViewAndUpsertDTO
 
     [Required]
     public string Name { get; set; } = default!;
+
+    [Required]
+    public string AvatarIcon { get; set; } = default!;
+
+    public int AvatarColor { get; set; } = 0;
 }
