@@ -9,7 +9,7 @@
 
 <MudLayout>
     <MudAppBar Elevation="0" Color="Color.Transparent">
-        <MudImage Src="shift-full.png" Height="18" Class="pe-5" />
+        <MudImage Src="@(_isDarkMode ? "shift-dark.png" : "shift.png")" Height="18" Class="pe-5" />
 
         <MudButton Href="/" Color="IsHomePage ? Color.Warning : Color.Default" Variant="Variant.Text">Home</MudButton>
         <MudButton Href="/docs" Color="@((IsActive("/docs") ? Color.Warning : Color.Default))" Variant="Variant.Text">Docs</MudButton>
