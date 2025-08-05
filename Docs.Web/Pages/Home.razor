@@ -1,0 +1,36 @@
+﻿@page "/"
+@using MudBlazor
+
+<PageTitle>Overview | Shift Framework | Home</PageTitle>
+
+<MudContainer Class="mt-15">
+    <MudText Style="color: #f8ca4d" Typo="Typo.h2" Inline><b>Shift </b></MudText>
+    <MudText Color="Color.Default" Typo="Typo.h2" Inline>Framework</MudText>
+
+    <MudText Inline="false">
+        A Full-Stack, Enterprise-Ready Web Development Framework
+    </MudText>
+</MudContainer>
+
+<MudContainer Class="mt-15">
+    <MudText Typo="Typo.h6"><b>Components</b></MudText>
+    <MudText Color="Color.Default" Inline>A set of Rich UI Components based on <MudLink Color="Color.Warning" Href="https://mudblazor.com" Target="_blank">MudBlazor</MudLink></MudText>
+
+    <MudGrid Spacing="10" Class="mt-1">
+        <MudItem lg="4">
+            <MudCard>
+                <MudCardHeader>
+                    <CardHeaderContent>
+                        <MudText Typo="Typo.h6">Shift Auto Complete</MudText>
+                    </CardHeaderContent>
+                </MudCardHeader>
+                <MudCardContent>
+                    <MudText>Search and Select <MudLink Color="Color.Warning">Shift Entities</MudLink> from a <MudLink Color="Color.Warning">Shift Entity Controller</MudLink> End-point</MudText>
+                </MudCardContent>
+                <MudCardActions>
+                    <MudButton Href="components/shift-auto-complete" Variant="Variant.Text" Color="Color.Warning">Read more</MudButton>
+                </MudCardActions>
+            </MudCard>
+        </MudItem>
+    </MudGrid>
+</MudContainer>
