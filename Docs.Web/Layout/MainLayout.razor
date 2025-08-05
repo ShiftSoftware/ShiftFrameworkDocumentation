@@ -13,7 +13,7 @@
 
         <MudButton Href="/" Color="IsHomePage ? Color.Warning : Color.Default" Variant="Variant.Text">Home</MudButton>
         <MudButton Href="/docs" Color="@((IsActive("/docs") ? Color.Warning : Color.Default))" Variant="Variant.Text">Docs</MudButton>
-        <MudButton Href="/docs/components/shift-blazor" Color="@((IsActive("/docs/components") ? Color.Warning : Color.Default))" Variant="Variant.Text">Components</MudButton>
+        <MudButton Href="/components" Color="@((IsActive("/components") ? Color.Warning : Color.Default))" Variant="Variant.Text">Components</MudButton>
         <MudSpacer />
 
         <MudToggleIconButton @bind-Toggled="_isDarkMode" Icon="@Icons.Material.Filled.WbSunny" Color="@Color.Primary" ToggledIcon="@Icons.Material.Filled.DarkMode" />
