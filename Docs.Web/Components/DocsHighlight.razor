@@ -1,0 +1,18 @@
+﻿<div class="@CssClass">@ChildContent</div>
+
+@code {
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    [Parameter]
+    public string Type { get; set; } = "warning"; // default is warning now
+
+    private string CssClass => Type switch
+    {
+        "info" => "docs-code docs-code-info", // Todo: implement this class styles
+        "success" => "docs-code docs-code-success", // Todo: implement this class styles
+        "danger" => "docs-code docs-code-danger", // Todo: implement this class styles
+        "warning" => "docs-code docs-code-warning",
+        _ => "docs-code docs-code-warning"
+    };
+}
+

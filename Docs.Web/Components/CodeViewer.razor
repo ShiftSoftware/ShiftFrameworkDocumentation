@@ -1,0 +1,16 @@
+﻿@using MudBlazor;
+
+<div style="position: relative;">
+    <div style="position: absolute;  right: 36px; top: 36px; z-index: 1; display: flex; gap: 16px;">
+        <MudIconButton Color="Color.Primary"
+                        Icon="@Icons.Material.Filled.Download"
+                        OnClick="@(() => DownloadFile(file.FileName, file.Content))" />
+
+        <MudIconButton Color="Color.Primary" 
+                        Icon="@Icons.Material.Filled.ContentCopy"
+                        OnClick="@(() => CopyToClipboard(file.Content))"/>
+    </div>
+    <pre class="line-numbers">
+        <code class="@file.PrismClass">@file.Content</code>
+    </pre>
+</div>

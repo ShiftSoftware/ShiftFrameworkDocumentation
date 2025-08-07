@@ -86,3 +86,44 @@ code {
 .form-floating > .form-control-plaintext:focus::placeholder, .form-floating > .form-control:focus::placeholder {
     text-align: start;
 }
+
+.docs-code.docs-code-warning {
+    color: var(--mud-palette-warning-darken);
+    background-color: var(--mud-palette-warning-hover);
+}
+
+.docs-code {
+    display: inline-block;
+    padding: 0 5px;
+    direction: ltr;
+    font-size: .85em;
+    font-weight: 900;
+    font-family: Consolas, "Liberation Mono", Menlo, Courier, monospace;
+    line-height: 1.4;
+    border-radius: 2px;
+    -webkit-font-smoothing: subpixel-antialiased;
+}
+
+
+.code-toggle-btn {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+}
+
+.code-section {
+    overflow: hidden;
+    transition: all 0.5s;
+}
+
+.code-section.expand {
+    max-height: 100000px; /* adjust if needed */
+    opacity: 1;
+    padding-top: 1rem;
+}
+
+.code-section.collapse {
+    max-height: 0;
+    opacity: 0;
+    padding-top: 0;
+}

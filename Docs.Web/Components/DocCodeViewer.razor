@@ -1,0 +1,31 @@
+﻿@using MudBlazor;
+
+<MudPaper Elevation="1" Class="mt-4 mb-4">
+    <div class="d-flex">
+        <MudSpacer />
+        <MudButton OnClick="@ToggleCode" Variant="Variant.Text" Color="Color.Warning" StartIcon="@(ShowCode? @Icons.Material.Filled.CodeOff : Icons.Material.Filled.Code)">
+            Code
+        </MudButton>
+    </div>
+
+    <div class="pa-5">
+        @if (DocComponent != null)
+        {
+            <DynamicComponent Type="@DocComponent" />
+        }
+    </div>
+
+    <MudCollapse Expanded="ShowCode">
+        @if (DocComponent != null && instance?.Docs != null)
+        {
+            foreach (var docFile in instance!.Docs)
+            {
+                <div style="padding: 20px;">
+                    <CodeViewer file="docFile" />
+                </div>
+            }
+        }
+    </MudCollapse>
+</MudPaper>
+
+
