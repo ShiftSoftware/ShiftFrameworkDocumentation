@@ -1,24 +1,9 @@
 ﻿using Docs.Web.Interfaces;
 
-namespace Docs.Web.Pages.Components.ShiftAutoComplete
+namespace Docs.Web.Pages.Components
 {
-    public partial class ShiftAutoComplete
+    public partial class Overview
     {
-        private string[] ShiftAutocompleteFeatures = new[]
-        {
-            "🔍 Real-time async search from OData endpoints",
-            "🎯 Single and multi-select support",
-            "➕ Quick Add modal support for adding new entities on the fly",
-            "🧩 Custom rendering templates for dropdown, inputs, selected values, etc.",
-            "🧪 EditForm-compatible with validation feedback",
-            "🌐 Supports filter injection with ODataFilterGenerator",
-            "🧼 Clearable, FreeInput, and ReadOnly modes",
-            "⚙️ Advanced keyboard navigation and shortcuts",
-            "📦 Supports external entity URLs and base keys",
-            "🎨 Fully styleable and templatable"
-        };
-
-
         private CodeFile CustomerDTOFile = new CodeFile
         {
             Downloadable = true,
@@ -64,7 +49,5 @@ public class CustomerListDTO : ShiftEntityListDTO
     public string AvatarColor { get; set; } = ""0"";
 }"
         };
-
-
     }
 }

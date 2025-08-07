@@ -35,29 +35,7 @@
 </MudContainer>
 
 
-<MudContainer Class="mt-15">
-    <MudText Typo="Typo.h4">📌 Prerequisite: Customer DTOs</MudText>
-    <MudText Class="mt-2">
-        One of the primary parameters of <DocsHighlight>Shift Autocomplete</DocsHighlight> is the <DocsHighlight>DTOs</DocsHighlight>, this documentation uses <DocsHighlight>Customer</DocsHighlight> and its DTOs. <br/>
-        So all the upcoming documentation examples assume the presence of two DTOs:
-        <ul class="ms-12 mt-2 mb-2">
-            <li class="mb-1"><DocsHighlight>CustomerDTO</DocsHighlight>: Used for creating or selecting a full customer object</li>
-            <li class="mb-1"><DocsHighlight>CustomerListDTO</DocsHighlight>: Used for lightweight display in selection lists (like autocompletes)</li>
-        </ul>
-
-        These DTOs are required for the proper functioning of components like <DocsHighlight>ShiftAutocomplete</DocsHighlight>, and you must define them in your shared project or models.
-    </MudText>
-
-    <MudText Class="mt-4 mb-2" Typo="Typo.h6">CustomerDTO.cs</MudText>
-    <CodeViewer file="CustomerDTOFile"/>
-
-    <MudText Class="mt-4 mb-2" Typo="Typo.h6">CustomerListDTO.cs</MudText>
-    <CodeViewer file="CustomerListDTOFile" />
-
-    <MudDivider Class="my-10" />
-
-
-    <MudText Typo="Typo.h5">Basic Usage</MudText>
+<DocComponentVariant Class="mt-15" Title="Basic Usage" DocComponent="@typeof(ShiftAutoCompleteBasicUse)">
     <MudText Class="mt-5 mb-3">
         <DocsHighlight>ShiftAutocomplete</DocsHighlight> requires a valid <DocsHighlight>EntitySet</DocsHighlight> and a corresponding <DocsHighlight>TEntitySet</DocsHighlight> that defines how the data appears in the selection list.
 
@@ -70,33 +48,14 @@
         <br />
         The examples below demonstrate the minimal setup required to get started with <DocsHighlight>ShiftAutocomplete</DocsHighlight>.
     </MudText>
-    <DocCodeViewer DocComponent="@typeof(ShiftAutoCompleteBasicUse)" />
-
-    <MudDivider Class="my-10" />
-
-</MudContainer>
+</DocComponentVariant>
 
 
+
+
+<DocComponentVariant Title="Clearable" DocComponent="@typeof(ShiftAutocompleteClearable)"></DocComponentVariant>
 
 <MudContainer Class="mt-15">
-    <div class="mt-10"></div>
-
-    <MudText Typo="Typo.h6">Clearable</MudText>
-    <MudPaper Elevation="1" Class="mt-1">
-        <div class="d-flex">
-            <MudSpacer />
-            <MudButton Variant="Variant.Text" Color="Color.Warning" StartIcon="@Icons.Material.Filled.Code">
-                Code
-            </MudButton>
-        </div>
-
-        <div class="pa-5">
-            <ShiftAutocomplete EntitySet="Customer"
-                               Label="Customer"
-                               Clearable
-                               TEntitySet="CustomerListDTO" />
-        </div>
-    </MudPaper>
 
     <div class="mt-10"></div>
 

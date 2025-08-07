@@ -6,10 +6,13 @@ namespace Docs.Web.Pages.Components.ShiftAutoComplete
     {
         public List<CodeFile> Docs => new()
             {
-                new CodeFile { FileName = "ShiftAutoCompleteBasicUsage.razor", PrismClass = "language-razor", Downloadable = true,
+                new CodeFile { 
+                    Downloadable = true,
+                    PrismClass = "language-razor", 
+                    FileName = "ShiftAutoCompleteBasicUsage.razor", 
                     Content = @"
-@using ShiftSoftware.ShiftBlazor.Components
 @using Docs.Shared.Customers
+@using ShiftSoftware.ShiftBlazor.Components
 
 <ShiftAutocomplete EntitySet=""Customer""
                    Label=""Customer""

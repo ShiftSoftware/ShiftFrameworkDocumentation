@@ -11,6 +11,7 @@
         public required string Content { get; set; }
         public required string PrismClass { get; set; }
         public required bool Downloadable { get; set; }
+        public string? Linehighlight { get; set; } = default; // https://prismjs.com/plugins/line-highlight/
 
     }
 

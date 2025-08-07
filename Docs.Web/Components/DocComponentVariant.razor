@@ -1,0 +1,19 @@
+﻿@using MudBlazor
+
+<MudContainer Class="@Class">
+    @if (TitleContent is not null)
+    {
+        @TitleContent
+    }
+    else if (!string.IsNullOrWhiteSpace(Title))
+    {
+        <MudText Typo="Typo.h5">@Title</MudText>
+    }
+    
+    @ChildContent
+    
+    <DocCodeViewer DocComponent="DocComponent" />
+
+    <MudDivider Class="my-10" />
+
+</MudContainer>

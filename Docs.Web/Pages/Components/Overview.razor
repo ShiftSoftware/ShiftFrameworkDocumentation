@@ -26,6 +26,26 @@
         You can mix and match ShiftBlazor components with standard MudBlazor ones — they use the same design system and follow the same UX principles.
     </MudAlert>
 
+    <MudText Typo="Typo.h4">📌 Prerequisite: Customer DTOs</MudText>
+    <MudText Class="mt-2">
+        One of the primary parameters of the any components for example <DocsHighlight>ShiftAutocomplete</DocsHighlight> is the <DocsHighlight>DTOs</DocsHighlight>, this documentation uses <DocsHighlight>Customer</DocsHighlight> and its DTOs. <br />
+        So all the upcoming documentation examples assume the presence of two DTOs:
+        <ul class="ms-12 mt-2 mb-2">
+            <li class="mb-1"><DocsHighlight>CustomerDTO</DocsHighlight>: Used for creating or selecting a full customer object</li>
+            <li class="mb-1"><DocsHighlight>CustomerListDTO</DocsHighlight>: Used for lightweight display in selection lists (like autocompletes)</li>
+        </ul>
+
+        These DTOs are required for the proper functioning of components like <DocsHighlight>ShiftAutocomplete</DocsHighlight>, and you must define them in your shared project or models.
+    </MudText>
+
+    <MudText Class="mt-4 mb-2" Typo="Typo.h6">CustomerDTO.cs</MudText>
+    <CodeViewer file="CustomerDTOFile" />
+
+    <MudText Class="mt-4 mb-2" Typo="Typo.h6">CustomerListDTO.cs</MudText>
+    <CodeViewer file="CustomerListDTOFile" />
+
+    <MudDivider Class="my-10" />
+
     <MudText Color="Color.Primary" Typo="Typo.h4" Inline><b>Components</b></MudText>
 
     <MudGrid Class="mt-1">
