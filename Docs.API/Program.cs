@@ -37,11 +37,9 @@ mvcBuilder.AddShiftEntityWeb(x =>
     //x.HashId.RegisterHashId(builder.Configuration.GetValue<bool>("Settings:HashIdSettings:AcceptUnencodedIds"));
     //x.HashId.RegisterIdentityHashId("one-two", 5);
 
-    //var azureStorageAccounts = new List<ShiftSoftware.ShiftEntity.Core.Services.AzureStorageOption>();
-
-    //builder.Configuration.Bind("AzureStorageAccounts", azureStorageAccounts);
-
-    //x.AddAzureStorage(azureStorageAccounts.ToArray());
+    var azureStorageAccounts = new List<ShiftSoftware.ShiftEntity.Core.Services.AzureStorageOption>();
+    builder.Configuration.Bind("AzureStorageAccounts", azureStorageAccounts);
+    x.AddAzureStorage(azureStorageAccounts.ToArray());
 });
 
 

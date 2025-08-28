@@ -5,6 +5,8 @@
 		<TargetFramework>net9.0</TargetFramework>
 		<Nullable>enable</Nullable>
 		<ImplicitUsings>enable</ImplicitUsings>
+		<StaticWebAssetBasePath>Docs.Web</StaticWebAssetBasePath>
+		<UserSecretsId>5cf895b8-68f9-4393-8bc3-19cb4d1b2187</UserSecretsId>
 	</PropertyGroup>
 
 	<ItemGroup>
