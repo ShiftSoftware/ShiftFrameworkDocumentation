@@ -1,0 +1,86 @@
+﻿@page "/components"
+
+@using Microsoft.AspNetCore.Components.Routing
+@using MudBlazor
+
+<MudContainer Class="mt-15">
+    <MudText Color="Color.Primary" Typo="Typo.h2" Inline><b>Shift </b></MudText>
+    <MudText Color="Color.Default" Typo="Typo.h2" Inline>Blazor</MudText>
+
+    <MudText Inline="false">
+        A Full-Stack, Enterprise-Ready blazor component library
+    </MudText>
+</MudContainer>
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="mt-10">
+    <MudText Typo="Typo.body1" Class="mb-4">
+        This section showcases all UI components provided by <MudText Inline Color="Color.Warning">Shift Blazor</MudText>, a core part of the end-to-end <MudLink Color="Color.Warning" Href="/">Shift Fremwork</MudLink>.
+        These components are tightly integrated with backend APIs, models, and behaviors defined in <MudLink Color="Color.Warning" Href="/core">Shift Core</MudLink>, <MudLink Color="Color.Warning" Href="/entity">Shift Entity</MudLink>, and <MudLink Color="Color.Warning" Href="/">Shift Identity</MudLink>, streamlining development of full-stack business applications.
+    </MudText>
+
+    <MudText Typo="Typo.body1" Class="mb-6">
+        Built on top of <MudLink Color="Color.Warning" Href="/" Target="_blank">MudBlazor</MudLink>, all ShiftBlazor components are fully theme-aware, support dark/light modes, and can be seamlessly used alongside any <MudLink Color="Color.Warning" Href="/" Target="_blank">MudBlazor</MudLink> components.
+    </MudText>
+
+    <MudAlert Severity="Severity.Info" Variant="Variant.Filled" Dense="true" Class="mb-6">
+        You can mix and match ShiftBlazor components with standard MudBlazor ones — they use the same design system and follow the same UX principles.
+    </MudAlert>
+
+    <MudText Typo="Typo.h4">📌 Prerequisite: Customer DTOs</MudText>
+    <MudText Class="mt-2">
+        One of the primary parameters of the any components for example <DocsHighlight>ShiftAutocomplete</DocsHighlight> is the <DocsHighlight>DTOs</DocsHighlight>, this documentation uses <DocsHighlight>Customer</DocsHighlight> and its DTOs. <br />
+        So all the upcoming documentation examples assume the presence of two DTOs:
+        <ul class="ms-12 mt-2 mb-2">
+            <li class="mb-1"><DocsHighlight>CustomerDTO</DocsHighlight>: Used for creating or selecting a full customer object</li>
+            <li class="mb-1"><DocsHighlight>CustomerListDTO</DocsHighlight>: Used for lightweight display in selection lists (like autocompletes)</li>
+        </ul>
+
+        These DTOs are required for the proper functioning of components like <DocsHighlight>ShiftAutocomplete</DocsHighlight>, and you must define them in your shared project or models.
+    </MudText>
+
+    <MudText Class="mt-4 mb-2" Typo="Typo.h6">CustomerDTO.cs</MudText>
+    <CodeViewer file="CustomerDTOFile" />
+
+    <MudText Class="mt-4 mb-2" Typo="Typo.h6">CustomerListDTO.cs</MudText>
+    <CodeViewer file="CustomerListDTOFile" />
+
+    <MudDivider Class="my-10" />
+
+    <MudText Color="Color.Primary" Typo="Typo.h4" Inline><b>Components</b></MudText>
+
+    <MudGrid Class="mt-1">
+        @foreach (var component in Components)
+        {
+            <MudItem xs="12" sm="6" md="4">
+                <MudCard Class="hover-scale">
+                    <MudCardContent>
+                        <MudText Typo="Typo.h6">@component.Name</MudText>
+                        <MudText Typo="Typo.body2" Class="mt-1">@component.Description</MudText>
+                    </MudCardContent>
+                    <MudCardActions>
+                        <MudButton Href="@component.Link" Variant="Variant.Text" Color="Color.Primary">View Docs</MudButton>
+                    </MudCardActions>
+                </MudCard>
+            </MudItem>
+        }
+    </MudGrid>
+</MudContainer>
+
+@code {
+    private record ComponentCard(string Name, string Description, string Link);
+
+    private List<ComponentCard> Components = new()
+        {
+            new("Shift Autocomplete", "An advanced autocomplete with async search, multi-select, and backend integration.", "/components/shift-autocomplete")
+        };
+}
+
+<style>
+    .hover-scale {
+        transition: transform 0.2s ease;
+    }
+
+    .hover-scale:hover {
+        transform: scale(1.02);
+    }
+</style>

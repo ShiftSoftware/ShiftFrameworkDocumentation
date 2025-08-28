@@ -3,50 +3,65 @@
 @using Docs.Web.Pages.Examples
 @using Docs.Shared.Customers
 
-<PageTitle>Shift Autocomplete | Shift Framework</PageTitle>
+<PageTitle>Shift Autocomplete</PageTitle>
 
 <MudContainer Class="mt-15">
     <MudText Typo="Typo.h4">Shift Autocomplete</MudText>
 
-    <MudText>Search and Select <MudLink Color="Color.Warning">Shift Entities</MudLink> from a <MudLink Color="Color.Warning">Shift Entity Controller</MudLink> End-point.</MudText>
+    <MudText>Search and Select <MudLink Href="/entities" Color="Color.Warning">Shift Entities</MudLink> from a <MudLink Href="/entities/controller" Color="Color.Warning">Shift Entity Controller</MudLink> End-point.</MudText>
+
+    <MudText Class="mt-5">
+        ShiftAutocomplete &lt;TEntitySet&gt; is a highly customizable and powerful autocomplete component built on top of MudBlazor that provides real-time entity searching, selection, and optional quick-add capabilities. It is fully integrated with <MudLink Href="/entities" Color="Color.Warning">Shift Entities</MudLink> and <MudLink Href="/components/modals" Color="Color.Warning">Shift Modals</MudLink> services, supporting both <DocsHighlight>single</DocsHighlight> and <DocsHighlight>multi-select</DocsHighlight> modes, <DocsHighlight>dynamic filtering</DocsHighlight>, <DocsHighlight>templating</DocsHighlight>, and <DocsHighlight>form validation</DocsHighlight>.
+    </MudText>
+
+    <MudText Class="mt-8">
+        <div class="d-flex align-center gap-2">
+            <MudIcon Icon="@Icons.Custom.Uncategorized.AlertSuccess" Color="Color.Success" />
+            <b>Key Features:</b>
+        </div>
+
+        <ul class="ms-12 mt-4">
+            @foreach (var feature in ShiftAutocompleteFeatures)
+                {
+                    <li  class="mb-1">
+                        @feature
+                    </li>
+                }
+        </ul>
+        
+    </MudText>
 </MudContainer>
 
-<MudContainer Class="mt-15" MaxWidth="MaxWidth.False" Style="float: left;">
 
-    <MudText Typo="Typo.h6">Basic Usage</MudText>
-    <MudPaper Elevation="1" Class="mt-1">
-        <div class="d-flex">
-            <MudSpacer />
-            <MudButton Variant="Variant.Text" Color="Color.Warning" StartIcon="@Icons.Material.Filled.Code">
-                Code
-            </MudButton>
-        </div>
+<DocComponentVariant Class="mt-15" Title="Basic Usage" DocComponent="@typeof(ShiftAutoCompleteBasicUse)">
+    <MudText Class="mt-5 mb-3">
+        <DocsHighlight>ShiftAutocomplete</DocsHighlight> requires a valid <DocsHighlight>EntitySet</DocsHighlight> and a corresponding <DocsHighlight>TEntitySet</DocsHighlight> that defines how the data appears in the selection list.
 
-        <div class="pa-5">
-            <ShiftAutocomplete EntitySet="Customer"
-                               Label="Customer"
-                               TEntitySet="CustomerListDTO" />
-        </div>
-    </MudPaper>
+        <br /><br />
+        In this basic usage example, we use the <DocsHighlight>Customer</DocsHighlight> entity with two supporting DTOs:
+        <ul class="ms-12 mt-2 mb-2">
+            <li><DocsHighlight>CustomerDTO</DocsHighlight> – used for representing and editing the full customer object.</li>
+            <li><DocsHighlight>CustomerListDTO</DocsHighlight> – used for displaying a simplified representation in the dropdown.</li>
+        </ul>
+        <br />
 
-    <div class="mt-10"></div>
+        This Example Highlights this basic features:
+        <ul class="ms-12 mt-2 mb-2">
+            <li>Using entity <DocsHighlight>Customer</DocsHighlight> to perform the searches.</li>
+            <li>The input has 200ms deboundcer</li>
+            <li>Property <DocsHighlight>Label</DocsHighlight> => input place holder text</li>
+        </ul>
+        <br />
+        The examples below demonstrate the minimal setup required to get started with <DocsHighlight>ShiftAutocomplete</DocsHighlight>.
+    </MudText>
+</DocComponentVariant>
 
-    <MudText Typo="Typo.h6">Clearable</MudText>
-    <MudPaper Elevation="1" Class="mt-1">
-        <div class="d-flex">
-            <MudSpacer />
-            <MudButton Variant="Variant.Text" Color="Color.Warning" StartIcon="@Icons.Material.Filled.Code">
-                Code
-            </MudButton>
-        </div>
 
-        <div class="pa-5">
-            <ShiftAutocomplete EntitySet="Customer"
-                               Label="Customer"
-                               Clearable
-                               TEntitySet="CustomerListDTO" />
-        </div>
-    </MudPaper>
+
+
+<DocComponentVariant Title="Clearable" DocComponent="@typeof(ShiftAutocompleteClearable)"></DocComponentVariant>
+
+<MudContainer Class="mt-15">
 
     <div class="mt-10"></div>
 
@@ -189,4 +204,9 @@
     <div class="mt-10"></div>
 
     <div class="mt-10"></div>
+</MudContainer>
+
+
+<MudContainer>
+    <MudText>APIs:</MudText>
 </MudContainer>

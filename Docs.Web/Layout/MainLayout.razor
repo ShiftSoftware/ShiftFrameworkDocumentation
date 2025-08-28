@@ -2,31 +2,74 @@
 @inherits LayoutComponentBase
 @inject NavigationManager NavigationManager
 
-<MudThemeProvider />
+<MudThemeProvider @bind-IsDarkMode="@_isDarkMode" Theme="_theme" @ref="_mudThemeProvider" />
 <MudPopoverProvider />
 <MudDialogProvider />
 <MudSnackbarProvider />
 
 <MudLayout>
-    <MudAppBar Elevation="0" Style="background-color: white; opacity:0.9;">
-        <MudImage Src="shift-full.png" Height="18" Class="pe-5" />
+    <MudAppBar Elevation="0" Color="Color.Transparent">
+        <MudImage Src="@(_isDarkMode ? "shift-dark.png" : "shift.png")" Height="18" Class="pe-5" />
 
-        <MudButton Href="/getting-started/installation" Color="@((IsActive("getting-started") ? Color.Warning : Color.Default))" Variant="Variant.Text">Get Started</MudButton>
-        <MudButton Href="/" Color="@((IsActive("", true) ? Color.Warning : Color.Default))" Variant="Variant.Text">Docs</MudButton>
-        <MudButton Href="/components/shift-blazor" Color="@((IsActive("components") ? Color.Warning : Color.Default))" Variant="Variant.Text">Components</MudButton>
+        <MudButton Href="/" Color="IsHomePage ? Color.Warning : Color.Default" Variant="Variant.Text">Home</MudButton>
+        <MudButton Href="/docs" Color="@((IsActive("/docs") ? Color.Warning : Color.Default))" Variant="Variant.Text">Docs</MudButton>
+        <MudButton Href="/components" Color="@((IsActive("/components") ? Color.Warning : Color.Default))" Variant="Variant.Text">Components</MudButton>
         <MudSpacer />
+
+        <MudToggleIconButton @bind-Toggled="_isDarkMode" Icon="@Icons.Material.Filled.WbSunny" Color="@Color.Primary" ToggledIcon="@Icons.Material.Filled.DarkMode" />
     </MudAppBar>
-    <MudDrawer Open ClipMode="DrawerClipMode.Always" Elevation="0">
-        <NavMenu />
-    </MudDrawer>
+
+    @if (!IsHomePage)
+    {
+        <MudDrawer Open ClipMode="DrawerClipMode.Always" Elevation="0">
+            <NavMenu />
+        </MudDrawer>
+    }
+
     <MudMainContent>
-        <MudContainer MaxWidth="MaxWidth.False">
+        <MudContainer Class="pb-10" MaxWidth="MaxWidth.False">
             @Body
         </MudContainer>
     </MudMainContent>
 </MudLayout>
 
+
 @code {
+    private bool _isDarkMode;
+    private MudThemeProvider _mudThemeProvider;
+    private MudTheme _theme = new()
+    {
+        PaletteLight = new PaletteLight()
+        {
+            Primary = "rgba(248, 202, 77, 1)",
+            White = "rgba(255, 255, 255, 1)",
+        },
+        PaletteDark = new PaletteDark()
+        {
+            Primary = "rgba(248, 202, 77, 1)",
+            White = "rgba(255, 255, 255, 1)",
+        },
+    };
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _isDarkMode = await _mudThemeProvider.GetSystemDarkModeAsync();
+            StateHasChanged();
+        }
+    }
+
+    private Task OnSystemDarkModeChanged(bool newValue)
+    {
+        _isDarkMode = newValue;
+        StateHasChanged();
+        return Task.CompletedTask;
+    }
+
+    private bool IsHomePage =>
+    string.IsNullOrEmpty(NavigationManager.ToBaseRelativePath(NavigationManager.Uri).TrimEnd('/'));
+
     private bool IsActive(string href, bool exact = false)
     {
         var uri = NavigationManager.Uri;

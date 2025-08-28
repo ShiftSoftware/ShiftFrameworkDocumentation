@@ -33,7 +33,7 @@ mvcBuilder.AddShiftEntityWeb(x =>
     x.AddDataAssembly(typeof(Docs.Data.Marker).Assembly);
     x.WrapValidationErrorResponseWithShiftEntityResponse(true);
     x.AddAutoMapper(typeof(Docs.Data.Marker).Assembly);
-
+    
     //x.HashId.RegisterHashId(builder.Configuration.GetValue<bool>("Settings:HashIdSettings:AcceptUnencodedIds"));
     //x.HashId.RegisterIdentityHashId("one-two", 5);
 

@@ -5,14 +5,15 @@
 @inject NavigationManager NavigationManager
 
 <MudNavMenu Color="Color.Warning">
-    <MudNavGroup Title="Getting Started" Expanded="@(IsActive("getting-started"))">
-        <MudNavLink Href="/getting-started/installation" Match="NavLinkMatch.Prefix">Installation</MudNavLink>
+    <MudNavLink Href="/docs" Match="NavLinkMatch.All">Overview</MudNavLink>
+
+    <MudNavGroup Title="Getting Started" Expanded="@(IsActive("/docs/"))">
+        <MudNavLink Href="/docs/installation" Match="NavLinkMatch.Prefix">Installation</MudNavLink>
     </MudNavGroup>
 
-    <MudNavLink Href="/" Match="NavLinkMatch.All">Overview</MudNavLink>
 
-    <MudNavGroup Title="Components" Expanded="@(IsActive("components"))">
-        <MudNavLink Href="/components/shift-blazor" Match="NavLinkMatch.Prefix">Overview</MudNavLink>
+    <MudNavGroup Title="Components" Expanded="@(IsActive("/components"))">
+        <MudNavLink Href="/components"  Match="NavLinkMatch.Prefix">Overview</MudNavLink>
         <MudNavLink Href="/components/shift-autocomplete" Match="NavLinkMatch.Prefix">Shift Autocomplete</MudNavLink>
         <MudNavLink Href="/components/file-explorer" Match="NavLinkMatch.Prefix">File Explorer</MudNavLink>
     </MudNavGroup>
