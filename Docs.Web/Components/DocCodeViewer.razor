@@ -16,14 +16,11 @@
     </div>
 
     <MudCollapse Expanded="ShowCode">
-        @if (DocComponent != null && instance?.Docs != null)
+        @if (DocComponent != null && ComponenCodeFile != null)
         {
-            foreach (var docFile in instance!.Docs)
-            {
-                <div style="padding: 20px;">
-                    <CodeViewer file="docFile" />
-                </div>
-            }
+            <div style="padding: 20px;">
+                <CodeViewer file="ComponenCodeFile" />
+            </div>
         }
     </MudCollapse>
 </MudPaper>

@@ -1,6 +1,5 @@
 ﻿using Docs.Web.Interfaces;
 using Microsoft.AspNetCore.Components;
-using static System.Net.WebRequestMethods;
 
 namespace Docs.Web.Components
 {
@@ -9,10 +8,12 @@ namespace Docs.Web.Components
         [Inject] private NavigationManager Nav { get; set; } = default!;
         [Inject] private HttpClient Http { get; set; } = default!;
         [Parameter] public required Type DocComponent { get; set; }
-        private bool ShowCode;
-        private IDocumentedComponent? instance;
+        [Parameter] public bool downloadable{ get; set; } = true;
+        [Parameter] public string Linehighlight { get; set; } = "";
 
-        private string? snippet;
+        private bool ShowCode;
+
+        private CodeFile? ComponenCodeFile { get; set; }
 
         private void ToggleCode()
         {
@@ -21,20 +22,27 @@ namespace Docs.Web.Components
 
         private async void getTextCode(string fileName)
         {
-            var url = new Uri(Nav.BaseUri + "snippets/ShiftAutoCompleteBasicUse.txt");
-            snippet = await Http.GetStringAsync(url);
+            var url = new Uri(Nav.BaseUri + "snippets/" + fileName);
+            var snippet = await Http.GetStringAsync(url);
+            
+            Console.WriteLine($"Loading snippet from {Linehighlight}");
 
-            //Console.WriteLine(snippet);
+            ComponenCodeFile = new CodeFile
+            {
+                Content = snippet,
+                Downloadable = downloadable,
+                Linehighlight= Linehighlight,
+                PrismClass = "language-razor",
+                FileName = fileName.Replace(".txt", ".razor"),
+            };
+
         } 
 
         protected override void OnInitialized()
         {
             if (DocComponent != null)
             {
-                instance = Activator.CreateInstance(DocComponent) as IDocumentedComponent;
-
-                var type = DocComponent;
-                var fileName = type.Name + ".razor";
+                var fileName = DocComponent.Name + ".txt";
 
                 getTextCode(fileName);
             }
