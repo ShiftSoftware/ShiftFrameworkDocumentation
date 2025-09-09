@@ -1,0 +1,34 @@
+﻿@using Docs.Shared.Customers
+@using ShiftSoftware.ShiftBlazor.Components
+
+<ShiftAutocomplete EntitySet="Customer"
+                   Label="Customer"
+                   MultiSelect
+                   TEntitySet="CustomerListDTO">
+
+    <SelectedValuesTemplate>
+        @{
+            var customer = (context.Item.Data as CustomerListDTO)!;
+        }
+
+        <MudAvatar Class="mt-1 mb-1 me-1" Color="@(Enum.Parse<Color>(customer.AvatarColor))" Size="Size.Small">
+            <MudIcon Icon="@(customer.AvatarIcon)" Size="Size.Small" />
+        </MudAvatar>
+    </SelectedValuesTemplate>
+
+
+    <DropdownItemTemplate>
+        @{
+            var customer = (context.Item as CustomerListDTO)!;
+        }
+
+        <MudIcon Icon="@(context.IsSelected? Icons.Material.Filled.CheckBox : Icons.Material.Outlined.CheckBoxOutlineBlank)" />
+
+        <MudAvatar Class="mt-1 mb-1 me-1" Color="@(Enum.Parse<Color>(customer.AvatarColor))" Size="Size.Small">
+            <MudIcon Icon="@(customer.AvatarIcon)" Size="Size.Small" />
+        </MudAvatar>
+
+        <MudText Inline>@customer.Name</MudText>
+    </DropdownItemTemplate>
+
+</ShiftAutocomplete>

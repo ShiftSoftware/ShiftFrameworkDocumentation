@@ -1,16 +1,25 @@
 ﻿@using MudBlazor;
 
-<div style="position: relative;">
-    <div style="position: absolute;  right: 16px; top: 16px; z-index: 1; display: flex; gap: 16px;">
-        <MudIconButton Color="Color.Primary"
-                        Icon="@Icons.Material.Filled.Download"
-                        OnClick="@(() => DownloadFile(file.FileName, file.Content))" />
+@if (file is null)
+{
+    <div style="display: flex; align-items: center; justify-content: center;">
+        <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+     </div>
+}
+else
+{
+    <div style="position: relative;">
+        <div style="position: absolute;  right: 16px; top: 16px; z-index: 1; display: flex; gap: 16px;">
+            <MudIconButton Color="Color.Primary"
+                            Icon="@Icons.Material.Filled.Download"
+                            OnClick="@(() => DownloadFile(file.FileName, file.Content))" />
 
-        <MudIconButton Color="Color.Primary" 
-                        Icon="@Icons.Material.Filled.ContentCopy"
-                        OnClick="@(() => CopyToClipboard(file.Content))"/>
+            <MudIconButton Color="Color.Primary" 
+                            Icon="@Icons.Material.Filled.ContentCopy"
+                            OnClick="@(() => CopyToClipboard(file.Content))"/>
+        </div>
+        <pre data-line="@file.Linehighlight" class="line-numbers">
+            <code class="@file.PrismClass">@file.Content</code>
+        </pre>
     </div>
-    <pre data-line="@file.Linehighlight" class="line-numbers">
-        <code class="@file.PrismClass">@file.Content</code>
-    </pre>
-</div>
+}   

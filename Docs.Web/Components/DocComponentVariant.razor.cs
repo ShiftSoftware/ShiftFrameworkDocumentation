@@ -11,6 +11,8 @@ namespace Docs.Web.Components
         [Parameter] public required Type DocComponent { get; set; }
         [Parameter] public RenderFragment? TitleContent { get; set; }
         [Parameter] public RenderFragment? ChildContent { get; set; }
+        [Parameter] public RenderFragment? PreCodeSnippet { get; set; }
+        [Parameter] public RenderFragment? PostCodeSnippet { get; set; }
         [Parameter] public RenderFragment? PostPreviewContent { get; set; }
     }
 }

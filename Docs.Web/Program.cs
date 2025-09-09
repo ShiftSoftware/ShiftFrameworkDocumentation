@@ -39,6 +39,8 @@ builder.Services.AddShiftBlazor(config =>
     };
 });
 
+builder.Services.AddScoped<Docs.Web.Helpers.DocFileHelper>();
+
 var host = builder.Build();
 
 var setMan = host.Services.GetRequiredService<SettingManager>();

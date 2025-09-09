@@ -19,7 +19,11 @@
         @if (DocComponent != null && ComponenCodeFile != null)
         {
             <div style="padding: 20px;">
+                @PreCodeSnippet
+
                 <CodeViewer file="ComponenCodeFile" />
+            
+                @PostCodeSnippet
             </div>
         }
     </MudCollapse>
