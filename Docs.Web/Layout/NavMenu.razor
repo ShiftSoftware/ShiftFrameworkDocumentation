@@ -11,11 +11,19 @@
         <MudNavLink Href="/docs/installation" Match="NavLinkMatch.Prefix">Installation</MudNavLink>
     </MudNavGroup>
 
-
     <MudNavGroup Title="Components" Expanded="@(IsActive("/components"))">
-        <MudNavLink Href="/components"  Match="NavLinkMatch.Prefix">Overview</MudNavLink>
-        <MudNavLink Href="/components/shift-autocomplete" Match="NavLinkMatch.Prefix">Shift Autocomplete</MudNavLink>
-        <MudNavLink Href="/components/file-explorer" Match="NavLinkMatch.Prefix">File Explorer</MudNavLink>
+        <MudNavLink Href="/components" Match="NavLinkMatch.All">Overview</MudNavLink>
+        @foreach (var (title, path) in ComponentPages)
+        {
+            <MudNavLink Href="@("/components/" + path)" Match="NavLinkMatch.All">@title</MudNavLink>
+        }
+    </MudNavGroup>
+
+    <MudNavGroup Title="Component APIs" Expanded="@(IsActive("/components/api"))">
+        @foreach (var (title, path) in ComponentPages)
+        {
+            <MudNavLink Href="@("/components/api/" + path)" Match="NavLinkMatch.All">@title</MudNavLink>
+        }
     </MudNavGroup>
 
     <MudNavGroup Title="Entities & Repositories" Expanded="@(IsActive("data"))">
@@ -33,6 +41,13 @@
 </MudNavMenu>
 
 @code {
+
+    private readonly List<(string Name, string UrlPathName)> ComponentPages = new()
+    {
+        ("Shift Autocomplete", "shift-auto-complete"),
+        ("File Explorer", "file-explorer")
+    };
+
     protected override void OnInitialized()
     {
         NavigationManager.LocationChanged += OnLocationChanged;

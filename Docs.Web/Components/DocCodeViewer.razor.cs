@@ -24,7 +24,7 @@ namespace Docs.Web.Components
 
         private async void getDocComponentCodeFie()
         {   
-            ComponenCodeFile = await DocFiles.GetDocFile(DocComponent, downloadable);
+            ComponenCodeFile = await DocFiles.GetDocFile(DocComponent, downloadable, lineheighlight: Linehighlight);
         } 
 
         protected override void OnInitialized()

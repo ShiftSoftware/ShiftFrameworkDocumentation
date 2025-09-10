@@ -1,4 +1,5 @@
 using Docs.Web;
+using Docs.Web.Services;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 using ShiftSoftware.ShiftBlazor.Extensions;
@@ -40,6 +41,7 @@ builder.Services.AddShiftBlazor(config =>
 });
 
 builder.Services.AddScoped<Docs.Web.Helpers.DocFileHelper>();
+builder.Services.AddScoped<ComponentDocService>();
 
 var host = builder.Build();
 

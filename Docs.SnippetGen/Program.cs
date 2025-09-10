@@ -22,7 +22,7 @@ foreach (var src in sources)
         .Where(full =>
         {
             var fileName = Path.GetFileName(full);
-            if (fileName.Equals("Index.razor", StringComparison.OrdinalIgnoreCase))
+            if (fileName.Equals("Index.razor", StringComparison.OrdinalIgnoreCase) || fileName.Equals("IndexAPI.razor", StringComparison.OrdinalIgnoreCase))
                 return false;
 
             var fileDir = Path.GetFullPath(Path.GetDirectoryName(full)!)

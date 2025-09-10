@@ -1,0 +1,46 @@
+﻿@using Docs.Web.Services
+@using MudBlazor
+@inject ComponentDocService DocService
+
+<MudContainer Class="p-4">
+    <MudText Typo="Typo.h5">Component APIs: </MudText>
+
+    @if (_rows is null)
+    {
+        <MudProgressLinear Indeterminate />
+    }
+    else if (_rows.Count == 0)
+    { 
+        <MudAlert Severity="Severity.Info">No parameters found.</MudAlert>
+    }
+    else
+    {
+        <MudTable Items="_rows" Dense="false" Hover="true">
+            <HeaderContent>
+                <MudTh>Name</MudTh>
+                <MudTh>Type</MudTh>
+                <MudTh>Required</MudTh>
+                <MudTh>Default</MudTh>
+                <MudTh>Description</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="Name">@context.Name</MudTd>
+                <MudTd DataLabel="Type"><code>@context.TypeName</code></MudTd>
+                <MudTd DataLabel="Required">@(context.Required ? "Yes" : "No")</MudTd>
+                <MudTd DataLabel="Default">@context.DefaultValue</MudTd>
+                <MudTd DataLabel="Description">@context.Description</MudTd>
+            </RowTemplate>
+        </MudTable>
+    }
+</MudContainer>
+
+@code {
+    [Parameter, EditorRequired] public Type ComponentType { get; set; } = default!;
+
+    private IReadOnlyList<ParamDoc>? _rows;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _rows = await DocService.DescribeAsync(ComponentType);
+    }
+}

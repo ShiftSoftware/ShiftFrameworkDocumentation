@@ -15,26 +15,13 @@ public class DocFileHelper
     }
 
     public async Task<CodeFile> GetDocFile<T>(
-        bool? downloadable = true, string? prismClass = "language-razor", string? overrideName = null)
+        bool? downloadable = true, string? prismClass = "language-razor", string? overrideName = null, string? lineheighlight = "")
     {
-        prismClass = prismClass ?? "language-razor";
-
-        var txtName = (overrideName ?? typeof(T).Name) + ".txt";
-        var url = new Uri(_nav.BaseUri + "snippets/" + txtName);
-
-        var snippet = await _http.GetStringAsync(url);
-
-        return new CodeFile
-        {
-            Content = snippet,
-            PrismClass = prismClass,
-            Downloadable = downloadable ?? true,
-            FileName = txtName.Replace(".txt", this.InferExtensionFromPrism(prismClass))
-        };
+        return await GetDocFile(typeof(T), downloadable, prismClass, overrideName, lineheighlight);
     }
 
     public async Task<CodeFile> GetDocFile(
-    Type ComponentType, bool? downloadable = true, string? prismClass = "language-razor", string? overrideName = null)
+    Type ComponentType, bool? downloadable = true, string? prismClass = "language-razor", string? overrideName = null, string? lineheighlight = "")
     {
         prismClass = prismClass ?? "language-razor";
 
@@ -48,9 +35,11 @@ public class DocFileHelper
             Content = snippet,
             PrismClass = prismClass,
             Downloadable = downloadable ?? true,
+            Linehighlight = lineheighlight ?? "",
             FileName = txtName.Replace(".txt", this.InferExtensionFromPrism(prismClass))
         };
     }
+
 
     private string InferExtensionFromPrism(string prismClass) =>
             prismClass switch
