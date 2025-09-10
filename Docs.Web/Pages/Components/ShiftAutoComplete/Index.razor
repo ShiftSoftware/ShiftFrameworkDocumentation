@@ -11,7 +11,7 @@
     <MudText>Search and Select <MudLink Href="/entities" Color="Color.Warning">Shift Entities</MudLink> from a <MudLink Href="/entities/controller" Color="Color.Warning">Shift Entity Controller</MudLink> End-point.</MudText>
 
     <MudText Class="mt-5">
-        ShiftAutocomplete &lt;TEntitySet&gt; is a highly customizable and powerful autocomplete component built on top of MudBlazor that provides real-time entity searching, selection, and optional quick-add capabilities. It is fully integrated with <MudLink Href="/entities" Color="Color.Warning">Shift Entities</MudLink> and <MudLink Href="/components/modals" Color="Color.Warning">Shift Modals</MudLink> services, supporting both <DocsHighlight>single</DocsHighlight> and <DocsHighlight>multi-select</DocsHighlight> modes, <DocsHighlight>dynamic filtering</DocsHighlight>, <DocsHighlight>templating</DocsHighlight>, and <DocsHighlight>form validation</DocsHighlight>.
+        ShiftAutocomplete is a highly customizable and powerful autocomplete component built on top of MudBlazor that provides real-time entity searching, selection, and optional quick-add capabilities. It is fully integrated with <MudLink Href="/entities" Color="Color.Warning">Shift Entities</MudLink> and <MudLink Href="/components/modals" Color="Color.Warning">Shift Modals</MudLink> services, supporting both <DocsHighlight>single</DocsHighlight> and <DocsHighlight>multi-select</DocsHighlight> modes, <DocsHighlight>dynamic filtering</DocsHighlight>, <DocsHighlight>templating</DocsHighlight>, and <DocsHighlight>form validation</DocsHighlight>.
     </MudText>
 
     <MudText Class="mt-8">
@@ -31,7 +31,6 @@
         
     </MudText>
 </MudContainer>
-
 
 <DocComponentVariant Class="mt-15" Title="Basic Usage" DocComponent="@typeof(ShiftAutoCompleteBasicUse)">
     <MudText Class="mt-5 mb-3">
@@ -59,132 +58,57 @@
 
 
 
-<DocComponentVariant Title="Clearable" DocComponent="@typeof(ShiftAutocompleteClearable)"></DocComponentVariant>
+<DocComponentVariant Title="Clearable" Linehighlight="6" DocComponent="@typeof(ShiftAutocompleteClearable)">
+    <MudText Class="mt-5 mb-3">
+        <DocsHighlight>ShiftAutocomplete</DocsHighlight> accepts optional <DocsHighlight>Clearable</DocsHighlight> boolean too determine is thew field clearable or not.
+    </MudText>
+</DocComponentVariant>
+
+<DocComponentVariant Title="Multi Select" Linehighlight="7" DocComponent="@typeof(ShiftAutoCompleteMultiSelect)">
+    <MudText Class="mt-5 mb-3">
+        <DocsHighlight>ShiftAutocomplete</DocsHighlight> accepts optional <DocsHighlight>MultiSelect</DocsHighlight> boolean too determine is the input is multi selectable or not.
+        <br />
+        Each selected item is represented as a <DocsHighlight>Chips</DocsHighlight> within the input field, allowing users to easily see and manage their selections and remove any items easily.        
+    </MudText>
+</DocComponentVariant>
+
+<DocComponentVariant Title="Multi Select (Grouped Tags)" Linehighlight="8" DocComponent="@typeof(ShiftAutoCompleteMultiSelectGrouped)">
+    <MudText Class="mt-5 mb-3">
+        <DocsHighlight>ShiftAutocomplete</DocsHighlight> accepts optional<DocsHighlight>GroupSelectedValues</DocsHighlight> when <DocsHighlight>MultiSelect</DocsHighlight> is being used to compact the selections.
+    </MudText>
+</DocComponentVariant>
+
+<DocComponentVariant Title="Custom Templates" Linehighlight="9-17,20-32" DocComponent="@typeof(ShiftAutoCompleteCustomTemplates)">
+    <MudText Class="mt-5 mb-3">
+        <DocsHighlight>ShiftAutocomplete</DocsHighlight> can be customized for both <b>Selected values</b> and <b>Selection Options</b>.
+        <br />
+        <ul class="ms-12 mt-2 mb-2">
+            <li><b>Selected values</b>: can be customized via <DocsHighlight>SelectedValuesTemplate</DocsHighlight> tag to display the selected items.</li>
+            <li><b>Selection Options</b>: can be customized via <DocsHighlight>DropdownItemTemplate</DocsHighlight> tag to display the selection items.</li>
+        </ul>
+        <br />
+        In this example, we customize the templates to include avatars and icons for each customer, enhancing the visual representation of both selected items and options in the dropdown.
+        Developers can leverage the <DocsHighlight>context</DocsHighlight> variable to access the current item and its properties, allowing for dynamic and context-aware rendering within the templates.
+    </MudText>
+</DocComponentVariant>
+
+<DocComponentVariant Title="Shift Form Integration" Linehighlight="6-7" DocComponent="@typeof(ShiftAutoCompleteFormIntegration)">
+    <ChildContent>
+        <MudText Class="mt-5 mb-3">
+            <DocsHighlight>ShiftAutocomplete</DocsHighlight> can perform CRUD operations using shift modals.
+            <br />
+            In this example, we integrate <DocsHighlight>ShiftAutocomplete</DocsHighlight> within a <DocsHighlight>ShiftForm</DocsHighlight>, enabling users to select a customer while also providing the capability to quickly add new customers via a modal form. This is achieved by setting the <DocsHighlight>QuickAddParameterName</DocsHighlight> and <DocsHighlight>QuickAddComponentType</DocsHighlight> properties, which link to the relevant field and form component respectively.
+        </MudText>
+    </ChildContent>
+
+    <PostCodeSnippet>
+        <h3 class="mt-4 mb-2">Customer Form</h3>
+        <CodeViewer ComponentType="typeof(CustomerForm)" />
+    </PostCodeSnippet>
+</DocComponentVariant>
+
 
 <MudContainer Class="mt-15">
-
-    <div class="mt-10"></div>
-
-    <MudText Typo="Typo.h6">Multi Select</MudText>
-    <MudPaper Elevation="1" Class="mt-1">
-        <div class="d-flex">
-            <MudSpacer />
-            <MudButton Variant="Variant.Text" Color="Color.Warning" StartIcon="@Icons.Material.Filled.Code">
-                Code
-            </MudButton>
-        </div>
-
-        <div class="pa-5">
-            <ShiftAutocomplete EntitySet="Customer"
-                               Label="Customer"
-                               MultiSelect
-                               TEntitySet="CustomerListDTO" />
-        </div>
-    </MudPaper>
-
-    <div class="mt-10"></div>
-
-    <MudText Typo="Typo.h6">Multi Select (Grouped Tags)</MudText>
-    <MudPaper Elevation="1" Class="mt-1">
-        <div class="d-flex">
-            <MudSpacer />
-            <MudButton Variant="Variant.Text" Color="Color.Warning" StartIcon="@Icons.Material.Filled.Code">
-                Code
-            </MudButton>
-        </div>
-
-        <div class="pa-5">
-            <ShiftAutocomplete EntitySet="Customer"
-                               Label="Customer"
-                               MultiSelect
-                               GroupSelectedValues
-                               TEntitySet="CustomerListDTO" />
-        </div>
-    </MudPaper>
-
-    <div class="mt-10"></div>
-
-    <MudText Typo="Typo.h6">Custom Templates</MudText>
-    <MudPaper Elevation="1" Class="mt-1">
-        <div class="d-flex">
-            <MudSpacer />
-            <MudButton Variant="Variant.Text" Color="Color.Warning" StartIcon="@Icons.Material.Filled.Code">
-                Code
-            </MudButton>
-        </div>
-
-        <div class="pa-5">
-            <ShiftAutocomplete EntitySet="Customer"
-                               Label="Customer"
-                               MultiSelect
-                               TEntitySet="CustomerListDTO">
-
-                <DropdownItemTemplate>
-                    @{
-                        var customer = (context.Item as CustomerListDTO)!;
-                    }
-
-                    <MudIcon Icon="@(context.IsSelected? Icons.Material.Filled.CheckBox : Icons.Material.Outlined.CheckBoxOutlineBlank)" />
-
-                    <MudAvatar Class="mt-1 mb-1 me-1" Color="@(Enum.Parse<Color>(customer.AvatarColor))" Size="Size.Small">
-                        <MudIcon Icon="@(customer.AvatarIcon)" Size="Size.Small" />
-                    </MudAvatar>
-
-                    <MudText Inline>@customer.Name</MudText>
-                </DropdownItemTemplate>
-                <SelectedValuesTemplate>
-                    @{
-                        var customer = (context.Item.Data as CustomerListDTO)!;
-                    }
-
-                    <MudAvatar Class="mt-1 mb-1 me-1" Color="@(Enum.Parse<Color>(customer.AvatarColor))" Size="Size.Small">
-                        <MudIcon Icon="@(customer.AvatarIcon)" Size="Size.Small" />
-                    </MudAvatar>
-                </SelectedValuesTemplate>
-            </ShiftAutocomplete>
-        </div>
-    </MudPaper>
-
-    <div class="mt-10"></div>
-
-    <MudText Typo="Typo.h6">Shift Form Integration</MudText>
-    <MudPaper Elevation="1" Class="mt-1">
-        <div class="d-flex">
-            <MudSpacer />
-            <MudButton Variant="Variant.Text" Color="Color.Warning" StartIcon="@Icons.Material.Filled.Code">
-                Code
-            </MudButton>
-        </div>
-
-        <div class="pa-5">
-            <ShiftAutocomplete EntitySet="Customer"
-                               Label="Customer"
-                               QuickAddParameterName="@nameof(CustomerDTO.Name)"
-                               QuickAddComponentType="typeof(CustomerForm)"
-                               TEntitySet="CustomerListDTO" />
-        </div>
-    </MudPaper>
-
-    <div class="mt-10"></div>
-
-    <MudText Typo="Typo.h6">Shift Form Integration</MudText>
-    <MudPaper Elevation="1" Class="mt-1">
-        <div class="d-flex">
-            <MudSpacer />
-            <MudButton Variant="Variant.Text" Color="Color.Warning" StartIcon="@Icons.Material.Filled.Code">
-                Code
-            </MudButton>
-        </div>
-
-        <div class="pa-5">
-            <ShiftAutocomplete EntitySet="Customer"
-                               Label="Customer"
-                               QuickAddParameterName="@nameof(CustomerDTO.Name)"
-                               QuickAddComponentType="typeof(CustomerForm)"
-                               TEntitySet="CustomerListDTO" />
-        </div>
-    </MudPaper>
-
     <div class="mt-10"></div>
 
     <MudText Typo="Typo.h6">Shift List Integration (Filtering)</MudText>

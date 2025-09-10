@@ -1,42 +1,37 @@
-﻿using Docs.Web.Interfaces;
+﻿using Docs.Web.Helpers;
+using Docs.Web.Interfaces;
 using Microsoft.AspNetCore.Components;
-using static System.Net.WebRequestMethods;
 
 namespace Docs.Web.Components
 {
     public partial class DocCodeViewer
     {
-        [Inject] private NavigationManager Nav { get; set; } = default!;
-        [Inject] private HttpClient Http { get; set; } = default!;
+        [Inject] private DocFileHelper DocFiles { get; set; } = default!;
         [Parameter] public required Type DocComponent { get; set; }
-        private bool ShowCode;
-        private IDocumentedComponent? instance;
+        [Parameter] public bool downloadable{ get; set; } = true;
+        [Parameter] public string Linehighlight { get; set; } = "";
+        [Parameter] public RenderFragment? PreCodeSnippet { get; set; }
+        [Parameter] public RenderFragment? PostCodeSnippet { get; set; }
 
-        private string? snippet;
+        private bool ShowCode;
+
+        private CodeFile? ComponenCodeFile { get; set; }
 
         private void ToggleCode()
         {
             ShowCode = !ShowCode;
         }
 
-        private async void getTextCode(string fileName)
-        {
-            var url = new Uri(Nav.BaseUri + "snippets/ShiftAutoCompleteBasicUse.txt");
-            snippet = await Http.GetStringAsync(url);
-
-            //Console.WriteLine(snippet);
+        private async void getDocComponentCodeFie()
+        {   
+            ComponenCodeFile = await DocFiles.GetDocFile(DocComponent, downloadable);
         } 
 
         protected override void OnInitialized()
         {
             if (DocComponent != null)
             {
-                instance = Activator.CreateInstance(DocComponent) as IDocumentedComponent;
-
-                var type = DocComponent;
-                var fileName = type.Name + ".razor";
-
-                getTextCode(fileName);
+                getDocComponentCodeFie();
             }
         }
     }

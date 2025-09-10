@@ -2,6 +2,7 @@ using Docs.Data;
 using Docs.Data.DbContext;
 using Microsoft.AspNetCore.Localization;
 using Microsoft.EntityFrameworkCore;
+using ShiftSoftware.TypeAuth.AspNetCore.Extensions;
 using System.Globalization;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -43,11 +44,9 @@ mvcBuilder.AddShiftEntityWeb(x =>
 });
 
 
-//builder.Services.AddTypeAuth((o) =>
-//{
-//    o.AddActionTree<ShiftIdentityActions>();
-//    o.AddActionTree<ShiftSoftware.ShiftEntity.Core.AzureStorageActionTree>();
-//});
+builder.Services.AddTypeAuth((o) =>
+{
+});
 
 
 
