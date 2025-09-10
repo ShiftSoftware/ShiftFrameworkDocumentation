@@ -2,8 +2,8 @@
 @using MudBlazor
 @inject ComponentDocService DocService
 
-<MudContainer Class="p-4">
-    <MudText Typo="Typo.h5">Component APIs: </MudText>
+<MudContainer Class="p-6">
+    <MudText Typo="Typo.h5" Class="mb-4">@Title</MudText>
 
     @if (_rows is null)
     {
@@ -15,32 +15,86 @@
     }
     else
     {
-        <MudTable Items="_rows" Dense="false" Hover="true">
+        <MudTable Items="_rows" Dense="false" Hover="true" Bordered="true" Striped="true" Breakpoint="Breakpoint.Sm">
             <HeaderContent>
                 <MudTh>Name</MudTh>
                 <MudTh>Type</MudTh>
-                <MudTh>Required</MudTh>
-                <MudTh>Default</MudTh>
-                <MudTh>Description</MudTh>
+                <MudTh Style="text-align: center">Required</MudTh>
+                <MudTh Style="text-align: center">Default</MudTh>
+                <MudTh Style="text-align: center">Description</MudTh>
             </HeaderContent>
+
             <RowTemplate>
                 <MudTd DataLabel="Name">@context.Name</MudTd>
                 <MudTd DataLabel="Type"><code>@context.TypeName</code></MudTd>
-                <MudTd DataLabel="Required">@(context.Required ? "Yes" : "No")</MudTd>
-                <MudTd DataLabel="Default">@context.DefaultValue</MudTd>
-                <MudTd DataLabel="Description">@context.Description</MudTd>
+                <MudTd Style="text-align: center" DataLabel="Required">
+                    @if (context.Required)
+                    {
+                        <MudChip T="string" Color="Color.Success" Size="Size.Small">Yes</MudChip>
+                    }
+                    else
+                    {
+                        <MudChip T="string" Color="Color.Error" Size="Size.Small">No</MudChip>
+                    }
+                </MudTd>
+                <MudTd Style="text-align: center" DataLabel="Default">@context.DefaultValue</MudTd>
+                <MudTd Style="text-align: center">
+                    <MudButton Variant="Variant.Filled"
+                               Color="Color.Info"
+                               Size="Size.Small"
+                               OnClick="@(() => ToggleRow(context.Name))">
+                        <MudIcon Style="margin-inline-end:8px;" Icon="@(expanded.Contains(context.Name)
+                                                                     ? Icons.Material.Filled.VisibilityOff
+                                                                     : Icons.Material.Filled.Visibility)" />
+                        Description
+                    </MudButton>    
+                </MudTd>
             </RowTemplate>
+
+            <ChildRowContent>            
+                <MudTd ColSpan="5" Style="padding: 0px !important" Class="p-0">
+                    <MudCollapse Class="p-4" Expanded="@expanded.Contains(context.Name)">
+                        <MudAlert Severity="Severity.Info">@context.Description</MudAlert>
+                    </MudCollapse>
+                </MudTd>
+            </ChildRowContent>
         </MudTable>
+        <MudTablePager PageSizeOptions="new int[] { 10, 20, 50 }" />
     }
 </MudContainer>
 
+
 @code {
     [Parameter, EditorRequired] public Type ComponentType { get; set; } = default!;
+    [Parameter] public string Title { get; set; } = "API Reference";
 
+    private MudTable<ParamDoc>? table;
     private IReadOnlyList<ParamDoc>? _rows;
+
+    private HashSet<string> expanded = new();
+
+    private void ToggleRow(string name)
+    {
+        if (!expanded.Add(name))
+            expanded.Remove(name);
+    }
 
     protected override async Task OnParametersSetAsync()
     {
-        _rows = await DocService.DescribeAsync(ComponentType);
+        var rows = await DocService.DescribeAsync(ComponentType);
+
+        _rows = rows
+            .OrderBy(x => GetGroupOrder(x.TypeName))
+            .ThenByDescending(x => x.Required)
+            .ThenBy(x => x.Name)
+            .ToList();
+    }
+
+    private static int GetGroupOrder(string typeName)
+    {
+        if (typeName.Contains("Boolean", StringComparison.OrdinalIgnoreCase)) return 1;
+        if (typeName.Contains("Int") || typeName.Contains("Double") || typeName.Contains("Decimal")) return 2;
+        if (typeName.Contains("String", StringComparison.OrdinalIgnoreCase)) return 3;
+        return 4;
     }
 }

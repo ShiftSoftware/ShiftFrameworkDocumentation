@@ -41,7 +41,6 @@ public class ComponentDocService
 
             try
             {
-
                 Type typeToCreate = componentType.IsGenericTypeDefinition
                     ? componentType.MakeGenericType(typeof(CustomerListDTO))
                     : componentType;
@@ -52,7 +51,10 @@ public class ComponentDocService
                 if (getValueMethod != null)
                 {
                     var val = getValueMethod.Invoke(instance, new object[] { p.Name });
-                    defaultValue = val is null ? null : ToLiteral(val);
+                    var literal = val is null ? null : ToLiteral(val);
+
+                    if (IsUsefulDefault(literal))
+                        defaultValue = literal;
                 }
             }
             catch { }
@@ -74,6 +76,24 @@ public class ComponentDocService
         }
 
         return Task.FromResult<IReadOnlyList<ParamDoc>>(list.OrderBy(x => x.Name).ToList());
+    }
+    static bool IsUsefulDefault(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return false;
+
+        if (value is "true" or "false") return true;
+        if (int.TryParse(value, out _)) return true;
+        if (decimal.TryParse(value, out _)) return true;
+
+        if (System.Text.RegularExpressions.Regex.IsMatch(value, @"^[A-Z][a-zA-Z0-9]+$"))
+            return true;
+
+        if (value.StartsWith("Microsoft.") || value.StartsWith("System."))
+            return false;
+
+        if (value.Contains("`")) return false;
+
+        return true;
     }
 
     static bool IsChildContent(Type t) =>
