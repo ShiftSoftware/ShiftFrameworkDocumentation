@@ -7,34 +7,139 @@
 <MudDialogProvider />
 <MudSnackbarProvider />
 
-<MudLayout>
-    <MudAppBar Elevation="0" Color="Color.Transparent">
-        <MudImage Src="@(_isDarkMode ? "shift-dark.png" : "shift.png")" Height="18" Class="pe-5" />
+<MudLayout Class="@($"shift-docs{(_isDarkMode ? " shift-dark" : "")}")">
+    <MudAppBar Class="docs-appbar-filter" Color="Color.Transparent" Elevation="0"></MudAppBar>
+    <MudAppBar Color="Color.Transparent" Class="docs-appbar" Elevation="0">
+        <div style="padding: 8px 28px;" class="d-flex align-center flex-grow-1 d-md-none">
+            <MudIconButton OnClick="DrawerToggleCallback" Icon="@Icons.Material.Rounded.Notes" Color="Color.Inherit" Edge="Edge.Start" aria-label="Toggle drawer" />
+            <MudSpacer />
+            <NavLink ActiveClass="d-flex align-center" href="/">
+                <MudImage Src="@(_isDarkMode ? "shift-dark.png" : "shift.png")" Height="16" Class="pe-5" />
+            </NavLink>
+            <MudSpacer />
+            <MudToggleIconButton @bind-Toggled="_isDarkMode" Icon="@Icons.Material.Filled.WbSunny" Color="@Color.Primary" ToggledIcon="@Icons.Material.Filled.DarkMode" />
+        </div>
 
-        <MudButton Href="/" Color="IsHomePage ? Color.Warning : Color.Default" Variant="Variant.Text">Home</MudButton>
-        <MudButton Href="/docs" Color="@((IsActive("/docs") ? Color.Warning : Color.Default))" Variant="Variant.Text">Docs</MudButton>
-        <MudButton Href="/components" Color="@((IsActive("/components") ? Color.Warning : Color.Default))" Variant="Variant.Text">Components</MudButton>
-        <MudSpacer />
+        <div style="padding: 8px 28px;" class="d-none d-md-flex align-center flex-grow-1">
+            <NavLink ActiveClass="d-flex align-center me-4" href="/">
+                <MudImage Src="@(_isDarkMode ? "shift-dark.png" : "shift.png")" Height="18" Class="pe-5" />
+            </NavLink>
 
-        <MudToggleIconButton @bind-Toggled="_isDarkMode" Icon="@Icons.Material.Filled.WbSunny" Color="@Color.Primary" ToggledIcon="@Icons.Material.Filled.DarkMode" />
+            <MudButton Href="/" Color="Color.Inherit" Variant="Variant.Text" Class="@GetActiveClass(IsActive("/", true))">Home</MudButton>
+            <MudButton Href="/docs" Color="Color.Inherit" Variant="Variant.Text" Class="@GetActiveClass(IsActive("/docs"))">Docs</MudButton>
+            <MudMenu Color="Color.Inherit" Variant="Variant.Text" Class="mx-1 px-3" PopoverClass="docs-layout-menu-shadow" ListClass="d-flex px-4 pb-2 docs-appbar-special-menu" LockScroll="true" Label="Projects" EndIcon="@Icons.Material.Filled.KeyboardArrowDown" AnchorOrigin="Origin.BottomCenter" TransformOrigin="Origin.TopCenter">
+                <MudList T="string">
+                    <MudListItem Href="/mud/introduction">
+                        <div class="d-flex">
+                            <MudText Color="Color.Primary">Shift Blazor</MudText>
+                        </div>
+                        <MudText Typo="Typo.body2">What is Shift Blazor?</MudText>
+                    </MudListItem>
+                </MudList>
+                <MudList T="string" Class="relative">
+                    <MudListItem Href="https://github.com/MudBlazor/MudBlazor.Icons">
+                        <div class="d-flex">
+                            <MudText>Type Auth</MudText>
+                        </div>
+                        <MudText Typo="Typo.body2">Role besed authorization.</MudText>
+                    </MudListItem>
+                 </MudList>
+            </MudMenu>
+
+            <MudSpacer />
+
+            <MudToggleIconButton @bind-Toggled="_isDarkMode" Icon="@Icons.Material.Filled.WbSunny" Color="@Color.Primary" ToggledIcon="@Icons.Material.Filled.DarkMode" />
+
+        </div>
     </MudAppBar>
+    @* 
+    <MudDrawer Open="@_drawerOpen" OpenChanged="OnDrawerOpenChanged" ClipMode="DrawerClipMode.Docked" Elevation="0" Breakpoint="Breakpoint.Md" aria-label="Navigation Drawer">
+        <div class="d-block d-md-none">
+            <MudToolBar Dense="true" Gutters="false" Class="docs-gray-bg">
+                <MudIconButton Icon="@Icons.Material.Rounded.Close" Color="Color.Inherit" OnClick="ToggleDrawer" aria-label="Toggle drawer" />
+                <MudSpacer />
+                <AppbarButtons />
+            </MudToolBar>
 
-    @if (!IsHomePage)
-    {
-        <MudDrawer Open ClipMode="DrawerClipMode.Always" Elevation="0">
-            <NavMenu />
-        </MudDrawer>
-    }
-
+            @if (_topMenuOpen == true)
+            {
+                <MudNavMenu Color="Color.Primary" Margin="Margin.Dense" Rounded="true" Class="pa-2">
+                    <MudNavLink Href="/getting-started/installation">Get Started</MudNavLink>
+                    <MudNavLink Href="/docs/overview">Docs</MudNavLink>
+                    <MudNavLink Href="/mud/introduction" Match="NavLinkMatch.All">Learn More</MudNavLink>
+                    <MudNavGroup Title="Projects" ExpandIcon="@Icons.Material.Filled.ExpandMore">
+                        <MudListSubheader Class="mt-4 pl-8 pb-2"><b>Official</b></MudListSubheader>
+                        <MudNavLink Href="https://mudblazor.com/">MudBlazor</MudNavLink>
+                        <MudNavLink Href="https://try.mudblazor.com/">TryMudBlazor</MudNavLink>
+                        <MudNavLink Href="https://github.com/MudBlazor/ThemeManager">ThemeManager</MudNavLink>
+                        <MudNavLink Href="https://github.com/MudBlazor/Templates">Templates</MudNavLink>
+                        <MudListSubheader Class="mt-4 pl-8 pb-2"><b>Community</b></MudListSubheader>
+                        <MudNavLink Href="/mud/community/extensions">CommunityExtensions</MudNavLink>
+                    </MudNavGroup>
+                </MudNavMenu>
+            }
+        </div>
+        <MudNavMenu Color="Color.Primary" Rounded="true" Dense="true" Margin="Margin.Dense" Class="pa-2 overflow-auto mb-3">
+            <NavMenu @ref="@_navMenuRef" />
+        </MudNavMenu>
+    </MudDrawer>
+    *@
     <MudMainContent>
         <MudContainer Class="pb-10" MaxWidth="MaxWidth.False">
             @Body
         </MudContainer>
-    </MudMainContent>
+    </MudMainContent> 
+    <MudScrollToTop TopOffset="400" Style="z-index:2000;">
+        <MudFab StartIcon="@Icons.Material.Filled.KeyboardArrowUp" Color="Color.Primary" />
+    </MudScrollToTop> 
+
 </MudLayout>
 
 
+<style>
+    .shift-docs .docs-single-link .mud-nav-link,
+    .shift-landingpage .docs-single-link .mud-nav-link {
+        font-weight: 500 !important;
+    }
+
+    .docs-appbar-filter {
+        z-index: 1301;
+        backdrop-filter: blur(12px);
+    }
+
+    .docs-appbar {
+        z-index: 1301;
+    }
+
+    .docs-appbar .mud-autocomplete,
+    .docs-menu-list .mud-autocomplete {
+        max-width: 360px;
+    }
+
+    .docs-appbar .mud-button,
+    .docs-menu-list .mud-button {
+        font-family: 'Public Sans', 'Roboto', 'Arial', 'sans-serif';
+        font-size: .875rem;
+        font-weight: 500;
+        line-height: 1.75;
+        letter-spacing: .02857em;
+        text-transform: none;
+    }
+
+</style>
+
 @code {
+    [Parameter]
+    public EventCallback<MouseEventArgs> DrawerToggleCallback { get; set; }
+
+    private string GetActiveClass(bool isActive)
+    {
+        return isActive ? "mud-chip-text mud-chip-color-primary mx-1 px-3" : "mx-1 px-3";
+    }
+
+    [Parameter]
+    public bool DisplaySearchBar { get; set; } = true;
+
     private bool _isDarkMode;
     private MudThemeProvider? _mudThemeProvider;
     private MudTheme _theme = new()

@@ -127,3 +127,46 @@ code {
     opacity: 0;
     padding-top: 0;
 }
+
+
+
+
+
+.shift-hero {
+    display: flex;
+    border-radius: 8px;
+    align-items: stretch;
+    padding: 8px !important;
+    height: calc(100vh - 106px);
+    background-size: 400% 400%;
+    animation: gradientShift 2s ease infinite;
+    background: linear-gradient(135deg, #f8ca4d, #ff9800, #f8ca4d);
+    box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)
+}
+
+@keyframes gradientShift {
+    0% {
+        background-position: 0% 50%;
+    }
+
+    50% {
+        background-position: 100% 50%;
+    }
+
+    100% {
+        background-position: 0% 50%;
+    }
+}
+
+.shift-hero-content {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    border-radius: 16px;
+    backdrop-filter: blur(10px);
+    background-color: rgba(255,255,255,0.86) !important;
+}
+
+.shift-dark .shift-hero-content {
+    background-color: rgba(55,55,64,0.86) !important;
+}

@@ -1,36 +1,198 @@
 ﻿@page "/"
 @using MudBlazor
 
-<PageTitle>Overview | Shift Framework | Home</PageTitle>
+<PageTitle>Shift Framework | Home</PageTitle>
 
-<MudContainer Class="mt-15">
-    <MudText Style="color: #f8ca4d" Typo="Typo.h2" Inline><b>Shift </b></MudText>
-    <MudText Color="Color.Default" Typo="Typo.h2" Inline>Framework</MudText>
+<!-- HERO SECTION -->
+<MudContainer MaxWidth="MaxWidth.False" Class="shift-hero">
+    <MudPaper Class="shift-hero-content" Elevation="0">
 
-    <MudText Inline="false">
-        A Full-Stack, Enterprise-Ready Web Development Framework
-    </MudText>
+    </MudPaper>
 </MudContainer>
+    @* <MudGrid AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
+        <MudItem md="6">
+            <MudText Typo="Typo.h2" Class="font-weight-bold mb-4">The .NET Framework for Enterprises</MudText>
+            <MudText Typo="Typo.h6" Class="mb-6">
+                Build production-ready applications with our <b>end-to-end</b> ecosystem.
+                Secure, scalable, and backed by a skilled team of developers.
+            </MudText>
+            <MudStack Direction="Row" Spacing="2">
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Large" Href="#products">Explore Products</MudButton>
+                <MudButton Variant="Variant.Outlined" Color="Color.Default" Size="Size.Large" Href="docs">Read Docs</MudButton>
+            </MudStack>
+        </MudItem>
+        <MudItem md="6" Class="d-flex justify-center">
+            <MudImage Src="/images/shift-dashboard.png" Alt="Shift Framework Dashboard" Width="500" Class="rounded-lg shadow-lg" />
+        </MudItem>
+    </MudGrid> *@
 
-<MudContainer Class="mt-15">
-    <MudText Typo="Typo.h6"><b>Components</b></MudText>
-    <MudText Color="Color.Default" Inline>A set of Rich UI Components based on <MudLink Color="Color.Warning" Href="https://mudblazor.com" Target="_blank">MudBlazor</MudLink></MudText>
-
-    <MudGrid Spacing="10" Class="mt-1">
-        <MudItem lg="4">
-            <MudCard>
+<!-- FEATURE HIGHLIGHTS -->
+@* <MudContainer Class="mt-12">
+    <MudGrid Spacing="4">
+        <MudItem md="4">
+            <MudCard Class="hover-elevate-10 transition-all h-100">
                 <MudCardHeader>
-                    <CardHeaderContent>
-                        <MudText Typo="Typo.h6">Shift Auto Complete</MudText>
-                    </CardHeaderContent>
+                    <MudIcon Icon="@Icons.Material.Filled.Speed" Color="Color.Warning" Size="Size.Large" Class="mr-2" />
+                    <MudText Typo="Typo.h6" Class="font-weight-bold">Performance</MudText>
                 </MudCardHeader>
                 <MudCardContent>
-                    <MudText>Search and Select <MudLink Color="Color.Warning">Shift Entities</MudLink> from a <MudLink Color="Color.Warning">Shift Entity Controller</MudLink> End-point</MudText>
+                    <MudText>Optimized for enterprise workloads with robust, scalable architecture.</MudText>
                 </MudCardContent>
-                <MudCardActions>
-                    <MudButton Href="components/shift-auto-complete" Variant="Variant.Text" Color="Color.Warning">Read more</MudButton>
-                </MudCardActions>
+            </MudCard>
+        </MudItem>
+
+        <MudItem md="4">
+            <MudCard Class="hover-elevate-10 transition-all h-100">
+                <MudCardHeader>
+                    <MudIcon Icon="@Icons.Material.Filled.Security" Color="Color.Warning" Size="Size.Large" Class="mr-2" />
+                    <MudText Typo="Typo.h6" Class="font-weight-bold">Secure & Ready</MudText>
+                </MudCardHeader>
+                <MudCardContent>
+                    <MudText>Enterprise-grade security baked in, ready for production deployments.</MudText>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+
+        <MudItem md="4">
+            <MudCard Class="hover-elevate-10 transition-all h-100">
+                <MudCardHeader>
+                    <MudIcon Icon="@Icons.Material.Filled.Group" Color="Color.Warning" Size="Size.Large" Class="mr-2" />
+                    <MudText Typo="Typo.h6" Class="font-weight-bold">Skilled Team</MudText>
+                </MudCardHeader>
+                <MudCardContent>
+                    <MudText>A passionate team delivering enterprise-ready solutions that scale.</MudText>
+                </MudCardContent>
             </MudCard>
         </MudItem>
     </MudGrid>
-</MudContainer>
+</MudContainer> *@
+
+<!-- PRODUCTS GRID -->
+@* <MudContainer Class="mt-16 text-center" Id="products">
+    <MudText Typo="Typo.h4" Class="font-weight-bold mb-6">Our Products</MudText>
+    <MudGrid Spacing="4" Justify="Justify.Center">
+        @foreach (var product in products)
+        {
+            <MudItem lg="4" md="6" xs="12">
+                <MudCard Class="h-100 hover-elevate-10 transition-all">
+                    <MudCardHeader>
+                        <MudIcon Icon="@product.Icon" Color="Color.Warning" Size="Size.Large" Class="mr-2" />
+                        <MudText Typo="Typo.h6">@product.Title</MudText>
+                    </MudCardHeader>
+                    <MudCardContent>
+                        <MudText>@product.ShortDesc</MudText>
+                    </MudCardContent>
+                    <MudCardActions>
+                        <MudButton Variant="Variant.Text" Color="Color.Primary" Href="@($"#{product.Id}")">Learn More</MudButton>
+                    </MudCardActions>
+                </MudCard>
+            </MudItem>
+        }
+    </MudGrid>
+</MudContainer> *@
+
+<!-- PRODUCT DETAILS SECTIONS -->
+@* @foreach (var product in products)
+{
+    <MudContainer Class="mt-20" Id="@product.Id">
+        <MudGrid Spacing="6" AlignItems="AlignItems.Center">
+            <MudItem md="6" xs="12">
+                <MudImage Src="@product.Image" Alt="@product.Title" Class="rounded-lg shadow-lg" />
+            </MudItem>
+            <MudItem md="6" xs="12">
+                <MudText Typo="Typo.h4" Class="font-weight-bold mb-2">@product.Title</MudText>
+                <MudText Typo="Typo.body1" Class="mb-4">@product.LongDesc</MudText>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" Href="@product.Link">Get Started</MudButton>
+            </MudItem>
+        </MudGrid>
+    </MudContainer>
+} *@
+
+<!-- DARK SECTION (like MudBlazor) -->
+@* <MudContainer MaxWidth="MaxWidth.False" Class="mt-20 px-6 py-16" Style="background:#1a1a2e; color:white;">
+    <MudGrid Spacing="6" AlignItems="AlignItems.Center">
+        <MudItem md="6">
+            <MudText Typo="Typo.h5" Class="mb-2" Style="color:#f8ca4d;">Global Scale</MudText>
+            <MudText Typo="Typo.h4" Class="font-weight-bold mb-4">Shift Framework is growing quickly</MudText>
+            <MudText Typo="Typo.body1" Class="mb-6">
+                Developers around the world are using Shift products to build enterprise apps with confidence.
+                Join the movement and scale your solutions with us.
+            </MudText>
+            <MudStack Direction="Row" Spacing="4">
+                <MudText Typo="Typo.h6"><b>120+</b> Companies</MudText>
+                <MudText Typo="Typo.h6"><b>30+</b> Developers</MudText>
+                <MudText Typo="Typo.h6"><b>5</b> Products</MudText>
+            </MudStack>
+        </MudItem>
+        <MudItem md="6" Class="d-flex justify-center">
+            <MudImage Src="/images/world-map.png" Alt="Global Reach" Width="500" />
+        </MudItem>
+    </MudGrid>
+</MudContainer> *@
+
+@code {
+    private List<ProductInfo> products = new()
+    {
+        new ProductInfo
+        {
+            Id = "shift-blazor",
+            Title = "Shift Blazor",
+            ShortDesc = "Rich UI components built on MudBlazor.",
+            LongDesc = "Shift Blazor extends MudBlazor with enterprise-ready features, tighter backend integration, and customizable workflows.",
+            Icon = Icons.Material.Filled.Dashboard,
+            Image = "/images/shift-blazor.png",
+            Link = "components/shift-blazor"
+        },
+        new ProductInfo
+        {
+            Id = "shift-identity",
+            Title = "Shift Identity",
+            ShortDesc = "Secure authentication and authorization.",
+            LongDesc = "Enterprise-level identity management with SSO, OAuth2, and role-based security built for .NET apps.",
+            Icon = Icons.Material.Filled.Lock,
+            Image = "/images/shift-identity.png",
+            Link = "components/shift-identity"
+        },
+        new ProductInfo
+        {
+            Id = "shift-entity",
+            Title = "Shift Entity",
+            ShortDesc = "Simplified data access and management.",
+            LongDesc = "Streamline your data layer with a strong typing system, controllers, and seamless backend connectivity.",
+            Icon = Icons.Material.Filled.Storage,
+            Image = "/images/shift-entity.png",
+            Link = "components/shift-entity"
+        },
+        new ProductInfo
+        {
+            Id = "shift-typeauth",
+            Title = "Shift TypeAuth",
+            ShortDesc = "Role-based access control for .NET.",
+            LongDesc = "Define and enforce authorization policies at the code level, ensuring consistency and security.",
+            Icon = Icons.Material.Filled.VerifiedUser,
+            Image = "/images/shift-typeauth.png",
+            Link = "components/shift-typeauth"
+        },
+        new ProductInfo
+        {
+            Id = "shift-webcomponents",
+            Title = "Shift WebComponents",
+            ShortDesc = "Framework-agnostic UI components.",
+            LongDesc = "Reusable UI across Blazor, React, Vue, and more with a single codebase.",
+            Icon = Icons.Material.Filled.Extension,
+            Image = "/images/shift-webcomponents.png",
+            Link = "components/shift-webcomponents"
+        }
+    };
+
+    public class ProductInfo
+    {
+        public string Id { get; set; }
+        public string Title { get; set; }
+        public string ShortDesc { get; set; }
+        public string LongDesc { get; set; }
+        public string Icon { get; set; }
+        public string Image { get; set; }
+        public string Link { get; set; }
+    }
+}
