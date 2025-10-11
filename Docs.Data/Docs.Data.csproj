@@ -9,7 +9,7 @@
 
 	<ItemGroup>
 
-		<PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="9.0.8" />
+		<PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="9.0.9" />
 
 		<PackageReference Include="ShiftSoftware.ShiftEntity.EFCore" Version="$(ShiftFrameworkVersion)" />
 		<PackageReference Include="ShiftSoftware.ShiftEntity.Print" Version="$(ShiftFrameworkVersion)" />
