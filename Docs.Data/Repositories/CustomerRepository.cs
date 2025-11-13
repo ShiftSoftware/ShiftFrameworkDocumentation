@@ -12,8 +12,8 @@ public class CustomerRepository : ShiftRepository<DB, Customer, CustomerListDTO,
 
     }
 
-    public override async Task SaveChangesAsync()
+    public override async Task<int> SaveChangesAsync()
     {
-        await base.SaveChangesAsync();
+        return await base.SaveChangesAsync();
     }
 }
