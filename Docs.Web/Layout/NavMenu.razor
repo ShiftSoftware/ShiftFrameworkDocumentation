@@ -1,77 +1,91 @@
-﻿@using MudBlazor
+@using MudBlazor
 @using Microsoft.AspNetCore.Components.Routing
+@using Docs.Web.Services
 
 @implements IDisposable
 @inject NavigationManager NavigationManager
+@inject SearchService Search
+
+@*
+    NavMenu — data-driven nav. Reads wwwroot/search-index.json (built by
+    Docs.SnippetGen from <DocPageMeta /> declarations on every doc page) and
+    renders pages grouped by Section. New pages auto-appear here just by
+    declaring DocPageMeta — no nav editing per page.
+
+    Sections are rendered in the order declared by SectionOrder below.
+    Anything else falls under "Other".
+*@
 
 <MudNavMenu Color="Color.Warning">
-    <MudNavLink Href="/docs" Match="NavLinkMatch.All">Overview</MudNavLink>
+    <MudNavLink Href="/" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Home">Home</MudNavLink>
 
-    <MudNavGroup Title="Getting Started" Expanded="@(IsActive("/docs/"))">
-        <MudNavLink Href="/docs/installation" Match="NavLinkMatch.Prefix">Installation</MudNavLink>
-    </MudNavGroup>
-
-    <MudNavGroup Title="Components" Expanded="@(IsActive("/components"))">
-        <MudNavLink Href="/components" Match="NavLinkMatch.All">Overview</MudNavLink>
-        @foreach (var (title, path) in ComponentPages)
+    @if (_groups is null)
+    {
+        <MudProgressLinear Indeterminate="true" />
+    }
+    else
+    {
+        @foreach (var grp in _groups)
         {
-            <MudNavLink Href="@("/components/" + path)" Match="NavLinkMatch.All">@title</MudNavLink>
+            <MudNavGroup Title="@grp.Section" Expanded="@(IsActive(SectionToHrefPrefix(grp.Section)))">
+                @foreach (var entry in grp.Pages)
+                {
+                    <MudNavLink Href="@entry.Url" Match="NavLinkMatch.All">
+                        @if (entry.Status == "Draft")
+                        {
+                            <MudTooltip Text="Draft — work in progress">
+                                <span class="nav-status-dot nav-status-draft"></span>
+                            </MudTooltip>
+                        }
+                        else if (entry.Status == "Reviewed")
+                        {
+                            <MudTooltip Text="Reviewed — content complete">
+                                <span class="nav-status-dot nav-status-reviewed"></span>
+                            </MudTooltip>
+                        }
+                        @entry.Title
+                    </MudNavLink>
+                }
+            </MudNavGroup>
         }
-    </MudNavGroup>
-
-    <MudNavGroup Title="Component APIs" Expanded="@(IsActive("/components/api"))">
-        @foreach (var (title, path) in ComponentPages)
-        {
-            <MudNavLink Href="@("/components/api/" + path)" Match="NavLinkMatch.All">@title</MudNavLink>
-        }
-    </MudNavGroup>
-
-    <MudNavGroup Title="Entities & Repositories" Expanded="@(IsActive("data"))">
-        <MudNavLink Href="/data/shift-entity" Match="NavLinkMatch.Prefix">Shift Entity</MudNavLink>
-        <MudNavLink Href="/data/shift-repository" Match="NavLinkMatch.Prefix">Shift Repository</MudNavLink>
-    </MudNavGroup>
-
-    <MudNavGroup Title="AspNetCore APIs" Expanded="@(IsActive("asp"))">
-        <MudNavLink Href="/asp/shift-entity-controller" Match="NavLinkMatch.Prefix">Controllers</MudNavLink>
-    </MudNavGroup>
-
-    <MudNavGroup Title="TypeAuth" Expanded="@(IsActive("type-auth"))">
-        <MudNavLink Href="/type-auth/actions" Match="NavLinkMatch.Prefix">Actions</MudNavLink>
-    </MudNavGroup>
+    }
 </MudNavMenu>
 
 @code {
-
-    private readonly List<(string Name, string UrlPathName)> ComponentPages = new()
+    // The five-section taxonomy from PLAN.md. Sections render in this order;
+    // anything else falls into a tail group.
+    private static readonly IReadOnlyList<string> SectionOrder = new[]
     {
-        ("Shift Autocomplete", "shift-auto-complete"),
-        ("File Explorer", "file-explorer")
+        "Get Started",
+        "Concepts",
+        "Guides",
+        "Components",
+        "API Reference",
     };
 
-    protected override void OnInitialized()
+    private IReadOnlyList<(string Section, IReadOnlyList<SearchEntry> Pages)>? _groups;
+
+    protected override async Task OnInitializedAsync()
     {
         NavigationManager.LocationChanged += OnLocationChanged;
+        _groups = await Search.GetAllGroupedBySectionAsync(SectionOrder);
     }
 
-    private void OnLocationChanged(object sender, LocationChangedEventArgs e)
+    private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
     {
         InvokeAsync(StateHasChanged);
     }
 
-    private bool IsActive(string href, bool exact = false)
+    private bool IsActive(string href)
     {
-        var uri = NavigationManager.Uri;
-        var relativePath = NavigationManager.ToBaseRelativePath(uri).TrimEnd('/');
-
-        href = href.TrimStart('/');
-
-        if (exact)
-        {
-            return string.Equals(relativePath, href, StringComparison.OrdinalIgnoreCase);
-        }
-
-        return relativePath.StartsWith(href, StringComparison.OrdinalIgnoreCase);
+        var relativePath = NavigationManager.ToBaseRelativePath(NavigationManager.Uri).TrimEnd('/');
+        return relativePath.StartsWith(href.TrimStart('/'), StringComparison.OrdinalIgnoreCase);
     }
+
+    // Map a section name to its expected URL prefix so the group auto-expands
+    // when the user is browsing inside it. Convention: lowercase, spaces → dashes.
+    private static string SectionToHrefPrefix(string section) =>
+        "/" + section.ToLowerInvariant().Replace(' ', '-');
 
     public void Dispose()
     {

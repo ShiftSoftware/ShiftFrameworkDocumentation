@@ -6,6 +6,8 @@
 		<Nullable>enable</Nullable>
 		<ImplicitUsings>enable</ImplicitUsings>
 		<BlazorWebAssemblyLoadAllGlobalizationData>true</BlazorWebAssemblyLoadAllGlobalizationData>
+		<!-- Pull XML doc files from referenced NuGet packages into OutDir so XmlDocService can surface them. -->
+		<CopyDocumentationFilesFromPackages>true</CopyDocumentationFilesFromPackages>
 	</PropertyGroup>
 
 	<ItemGroup>
@@ -24,5 +26,25 @@
 		<Exec Command="dotnet run --project ..\Docs.SnippetGen\Docs.SnippetGen.csproj" />
 	</Target>
 
+	<!--
+	  CopyShiftFrameworkXmlDocs:
+	  After build, copy XML documentation files for Shift* assemblies from the build output
+	  into wwwroot/xmldocs/ so the WASM client's XmlDocService can fetch them at runtime
+	  to populate component parameter descriptions. XML doc files ship inside the NuGet
+	  package's lib/{tfm}/ folder and land in the build output automatically — we just
+	  need to surface them as static web assets.
+	-->
+	<Target Name="CopyShiftFrameworkXmlDocs" AfterTargets="Build">
+		<ItemGroup>
+			<ShiftXmlDocs Include="$(OutDir)ShiftSoftware.ShiftBlazor*.xml" />
+			<ShiftXmlDocs Include="$(OutDir)ShiftSoftware.ShiftEntity*.xml" />
+			<ShiftXmlDocs Include="$(OutDir)ShiftSoftware.ShiftIdentity*.xml" />
+			<ShiftXmlDocs Include="$(OutDir)ShiftSoftware.TypeAuth*.xml" />
+		</ItemGroup>
+		<Copy SourceFiles="@(ShiftXmlDocs)"
+		      DestinationFolder="$(MSBuildProjectDirectory)\wwwroot\xmldocs\"
+		      SkipUnchangedFiles="true"
+		      Condition="'@(ShiftXmlDocs)' != ''" />
+	</Target>
 
 </Project>

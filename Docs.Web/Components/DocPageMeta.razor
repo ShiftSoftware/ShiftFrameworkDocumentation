@@ -1,0 +1,59 @@
+@*
+    DocPageMeta — declares metadata for a documentation page. Place it once at
+    the top of every doc .razor page (after @page).
+
+    Three jobs:
+      1. Renders the page heading + a colored status chip (Draft / Reviewed / Stable).
+      2. Sets the browser <title> via PageTitle.
+      3. Provides metadata that Docs.SnippetGen scans at build time to produce
+         wwwroot/search-index.json. The build-time scanner is regex-based and
+         expects attributes on a single line — keep them on one line each.
+
+    Usage:
+        @page "/get-started/installation"
+        <DocPageMeta Title="Installation"
+                     Section="Get Started"
+                     Status="DocPageStatus.Stable"
+                     Description="Install prerequisites and create your first project."
+                     Keywords="install,setup,prerequisites,dotnet new shift" />
+*@
+
+<PageTitle>@Title — Shift Framework Docs</PageTitle>
+
+<div class="doc-page-header d-flex align-center mb-4">
+    <MudText Typo="Typo.h3" Class="doc-page-title flex-grow-1">@Title</MudText>
+    @if (Status != DocPageStatus.Stable)
+    {
+        <MudChip T="string" Color="@StatusColor" Size="Size.Small" Class="ml-3">@Status</MudChip>
+    }
+</div>
+
+@if (!string.IsNullOrEmpty(Description))
+{
+    <MudText Typo="Typo.subtitle1" Class="doc-page-description mud-text-secondary mb-2">@Description</MudText>
+}
+
+@if (!string.IsNullOrEmpty(TestedAgainst))
+{
+    <MudText Typo="Typo.caption" Class="doc-page-tested mud-text-secondary mb-6 d-block">
+        <MudIcon Icon="@Icons.Material.Filled.VerifiedUser" Size="Size.Small" Class="mr-1" Style="vertical-align: middle;" />
+        Last verified against Shift Framework <code>@TestedAgainst</code>
+    </MudText>
+}
+
+@code {
+    [Parameter, EditorRequired] public string Title { get; set; } = default!;
+    [Parameter] public string? Section { get; set; }
+    [Parameter] public DocPageStatus Status { get; set; } = DocPageStatus.Draft;
+    [Parameter] public string? Description { get; set; }
+    [Parameter] public string? Keywords { get; set; }
+    [Parameter] public string? TestedAgainst { get; set; }
+
+    private Color StatusColor => Status switch
+    {
+        DocPageStatus.Draft => Color.Warning,
+        DocPageStatus.Reviewed => Color.Info,
+        DocPageStatus.Stable => Color.Success,
+        _ => Color.Default,
+    };
+}

@@ -20,10 +20,23 @@ public record ParamDoc(
 
 public class ComponentDocService
 {
-    public Task<IReadOnlyList<ParamDoc>> DescribeAsync(Type componentType, Func<MemberInfo, string?>? docProvider = null)
+    private readonly XmlDocService? _xmlDocs;
+
+    public ComponentDocService(XmlDocService? xmlDocs = null)
+    {
+        _xmlDocs = xmlDocs;
+    }
+
+    public async Task<IReadOnlyList<ParamDoc>> DescribeAsync(Type componentType, Func<MemberInfo, string?>? docProvider = null)
     {
         var props = componentType
             .GetProperties(BindingFlags.Instance | BindingFlags.Public);
+
+        // Prime the XML doc cache for this component's assembly so synchronous lookups below hit.
+        if (_xmlDocs is not null)
+        {
+            await _xmlDocs.GetSummaryAsync(componentType);
+        }
 
         var list = new List<ParamDoc>();
 
@@ -61,7 +74,8 @@ public class ComponentDocService
 
             var desc = p.GetCustomAttribute<DisplayAttribute>()?.Description
                     ?? p.GetCustomAttribute<DescriptionAttribute>()?.Description
-                    ?? docProvider?.Invoke(p);
+                    ?? docProvider?.Invoke(p)
+                    ?? _xmlDocs?.TryGetSummary(p);
 
             list.Add(new ParamDoc(
                 Name: p.Name,
@@ -75,7 +89,7 @@ public class ComponentDocService
             ));
         }
 
-        return Task.FromResult<IReadOnlyList<ParamDoc>>(list.OrderBy(x => x.Name).ToList());
+        return list.OrderBy(x => x.Name).ToList();
     }
     static bool IsUsefulDefault(string? value)
     {

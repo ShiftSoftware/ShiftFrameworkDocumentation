@@ -1,0 +1,48 @@
+@*
+    DocCallout — colored callout box for notes, warnings, and tips.
+    Built on top of MudAlert so it inherits theme colors.
+
+    Usage:
+        <DocCallout Type="DocCalloutType.Note">
+            SelectDTO works with both long and long?.
+        </DocCallout>
+
+        <DocCallout Type="DocCalloutType.Warning" Title="Heads up">
+            Don't expose internal IDs through SelectDTO.Text.
+        </DocCallout>
+*@
+
+<MudAlert Severity="@Severity"
+          Variant="Variant.Outlined"
+          Icon="@Icon"
+          Class="doc-callout my-3">
+    @if (!string.IsNullOrEmpty(Title))
+    {
+        <MudText Typo="Typo.subtitle2" Class="mb-1"><b>@Title</b></MudText>
+    }
+    @ChildContent
+</MudAlert>
+
+@code {
+    [Parameter] public DocCalloutType Type { get; set; } = DocCalloutType.Note;
+    [Parameter] public string? Title { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    private Severity Severity => Type switch
+    {
+        DocCalloutType.Note => MudBlazor.Severity.Info,
+        DocCalloutType.Tip => MudBlazor.Severity.Success,
+        DocCalloutType.Warning => MudBlazor.Severity.Warning,
+        DocCalloutType.Danger => MudBlazor.Severity.Error,
+        _ => MudBlazor.Severity.Info,
+    };
+
+    private string Icon => Type switch
+    {
+        DocCalloutType.Note => Icons.Material.Filled.Info,
+        DocCalloutType.Tip => Icons.Material.Filled.Lightbulb,
+        DocCalloutType.Warning => Icons.Material.Filled.Warning,
+        DocCalloutType.Danger => Icons.Material.Filled.Error,
+        _ => Icons.Material.Filled.Info,
+    };
+}

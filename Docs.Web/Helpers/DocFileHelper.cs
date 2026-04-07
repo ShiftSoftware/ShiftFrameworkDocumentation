@@ -20,6 +20,24 @@ public class DocFileHelper
         return await GetDocFile(typeof(T), downloadable, prismClass, overrideName, lineheighlight);
     }
 
+    public async Task<CodeFile> GetSnippetByName(
+        string snippetName, bool? downloadable = true, string? prismClass = "language-cs", string? lineheighlight = "")
+    {
+        prismClass ??= "language-cs";
+
+        var url = new Uri(_nav.BaseUri + "snippets/" + snippetName + ".txt");
+        var snippet = await _http.GetStringAsync(url);
+
+        return new CodeFile
+        {
+            Content = snippet,
+            PrismClass = prismClass,
+            Downloadable = downloadable ?? true,
+            Linehighlight = lineheighlight ?? "",
+            FileName = snippetName + this.InferExtensionFromPrism(prismClass)
+        };
+    }
+
     public async Task<CodeFile> GetDocFile(
     Type ComponentType, bool? downloadable = true, string? prismClass = "language-razor", string? overrideName = null, string? lineheighlight = "")
     {

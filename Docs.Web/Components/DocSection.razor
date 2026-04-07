@@ -1,0 +1,38 @@
+@*
+    DocSection — wraps a documentation section with a consistent heading,
+    spacing, and an anchor link so cross-page deep links keep working.
+
+    Usage:
+        <DocSection Title="What is ShiftEntity">
+            <p>...</p>
+        </DocSection>
+
+    Title is required. Id is auto-derived from the title (lowercase, spaces
+    replaced with dashes) but can be overridden via the Id parameter.
+*@
+
+<section class="doc-section mt-6 mb-6" id="@EffectiveId">
+    <MudText Typo="Typo.h4" Class="doc-section-title mb-3">
+        <a href="#@EffectiveId" class="doc-section-anchor">@Title</a>
+    </MudText>
+    <div class="doc-section-body">
+        @ChildContent
+    </div>
+</section>
+
+@code {
+    [Parameter, EditorRequired] public string Title { get; set; } = default!;
+    [Parameter] public string? Id { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    private string EffectiveId => Id ?? Slugify(Title);
+
+    private static string Slugify(string text)
+    {
+        return new string(text.ToLowerInvariant()
+            .Select(c => char.IsLetterOrDigit(c) ? c : '-')
+            .ToArray())
+            .Trim('-')
+            .Replace("--", "-");
+    }
+}

@@ -1,0 +1,55 @@
+@*
+    DocSearchBox — top-bar search input with live dropdown of matching pages.
+    Drop into MainLayout next to the title.
+
+    Reads from wwwroot/search-index.json (built by Docs.SnippetGen by scanning
+    every <DocPageMeta /> across Pages/).
+*@
+
+@using Docs.Web.Services
+@inject SearchService Search
+@inject NavigationManager Nav
+
+<MudAutocomplete T="SearchHit"
+                 SearchFunc="@DoSearch"
+                 ToStringFunc="@(h => h?.Entry.Title ?? "")"
+                 ValueChanged="@OnSelected"
+                 Placeholder="Search docs..."
+                 Variant="Variant.Outlined"
+                 Margin="Margin.Dense"
+                 Adornment="Adornment.Start"
+                 AdornmentIcon="@Icons.Material.Filled.Search"
+                 Class="doc-search-box"
+                 Clearable="true"
+                 ResetValueOnEmptyText="true"
+                 ShowProgressIndicator="true">
+    <ItemTemplate Context="hit">
+        <div class="d-flex flex-column">
+            <div class="d-flex align-center">
+                <MudText Typo="Typo.body1"><b>@hit.Entry.Title</b></MudText>
+                @if (!string.IsNullOrEmpty(hit.Entry.Section))
+                {
+                    <MudChip T="string" Size="Size.Small" Class="ml-2">@hit.Entry.Section</MudChip>
+                }
+            </div>
+            @if (!string.IsNullOrEmpty(hit.Entry.Description))
+            {
+                <MudText Typo="Typo.caption" Class="mud-text-secondary">@hit.Entry.Description</MudText>
+            }
+        </div>
+    </ItemTemplate>
+</MudAutocomplete>
+
+@code {
+    private async Task<IEnumerable<SearchHit>> DoSearch(string query, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(query)) return Array.Empty<SearchHit>();
+        var hits = await Search.SearchAsync(query, max: 10);
+        return hits;
+    }
+
+    private void OnSelected(SearchHit? hit)
+    {
+        if (hit is not null) Nav.NavigateTo(hit.Entry.Url);
+    }
+}

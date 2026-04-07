@@ -1,0 +1,115 @@
+@page "/get-started/installation"
+
+<DocPageMeta Title="Installation"
+             Section="Get Started"
+             Status="DocPageStatus.Reviewed"
+             TestedAgainst="2026.04.3.1"
+             Description="Install prerequisites, the dotnet new template, and scaffold your first Shift Framework project."
+             Keywords="install,setup,prerequisites,dotnet new shift,template,sql server" />
+
+<DocSection Title="Prerequisites">
+    <p>Before you scaffold your first project, install the following on your machine:</p>
+    <ul>
+        <li><b>.NET 10 SDK</b> or later — <MudLink Href="https://dotnet.microsoft.com/download" Target="_blank">download</MudLink>.</li>
+        <li><b>SQL Server</b> — LocalDB or Express is fine for development. Production apps typically run against full SQL Server or Azure SQL.</li>
+        <li>An IDE: <b>Visual Studio 2022+</b>, <b>JetBrains Rider</b>, or <b>VS Code</b> with the C# Dev Kit.</li>
+    </ul>
+
+    <p>You can verify your .NET SDK version with:</p>
+    <DocSnippet Name="VerifyDotnetVersion" Language="bash" />
+
+    <DocCallout Type="DocCalloutType.Note">
+        Some optional features need extra tooling. You can skip these now and add them later as needed.
+    </DocCallout>
+
+    <ul>
+        <li><b>Azure Cosmos DB Emulator</b> — only if you plan to use Cosmos replication.</li>
+        <li><b>Azure Functions Core Tools</b> — only if your project includes the optional Functions project.</li>
+        <li><b>Azurite</b> — local emulator for Azure Storage, used by file upload features in development.</li>
+    </ul>
+</DocSection>
+
+<DocSection Title="Install the project template">
+    <p>
+        Shift Framework ships as a <code>dotnet new</code> template. Install it once
+        from NuGet and it becomes available across all your projects:
+    </p>
+
+    <DocSnippet Name="InstallTemplate" Language="bash" />
+
+    <p>
+        This registers two templates with the .NET CLI: <code>shift</code> for scaffolding
+        a full project, and <code>shiftentity</code> for adding a new entity to an existing
+        project. You can verify they're installed with:
+    </p>
+
+    <DocSnippet Name="VerifyTemplateInstalled" Language="bash" />
+
+    <DocCallout Type="DocCalloutType.Tip">
+        To upgrade the template later, run the same install command with an
+        <code>@@*</code> suffix — that forces the latest version.
+    </DocCallout>
+
+    <DocSnippet Name="UpgradeTemplate" Language="bash" />
+</DocSection>
+
+<DocSection Title="Scaffold your first project">
+    <p>Pick a folder, create a new directory for your project, and run the template:</p>
+
+    <DocSnippet Name="ScaffoldFirstProject" Language="bash" />
+
+    <p>
+        The <code>-n</code> (name) flag is used as both the solution name and the root
+        namespace for every project the template generates. Choose carefully —
+        renaming after the fact is mechanical but tedious.
+    </p>
+
+    <p>
+        Two parameters are <b>required</b> by the template:
+    </p>
+    <ul>
+        <li><code>--includeSampleApp true</code> — generates a fully working sample
+            (the StockPlusPlus inventory app) so you have something to run immediately.
+            Set to <code>false</code> for an empty skeleton.</li>
+        <li><code>--shiftIdentityHostingType Internal</code> — hosts ShiftIdentity
+            inside the same API process. Use <code>External</code> if you already
+            run a separate ShiftIdentity instance.</li>
+    </ul>
+
+    <p>
+        The template accepts several other optional parameters. The next page
+        (<MudLink Href="/get-started/template-parameters">Template parameters</MudLink>)
+        explains each one in detail.
+    </p>
+</DocSection>
+
+<DocSection Title="Build and verify">
+    <p>From the project directory, restore packages and build:</p>
+
+    <DocSnippet Name="BuildProject" Language="bash" />
+
+    <p>
+        A clean build means the template, all NuGet packages, and your local SDK
+        are aligned. If you see errors at this stage, they are almost always one of:
+    </p>
+    <ul>
+        <li>An older .NET SDK — confirm with <code>dotnet --version</code> that you're on .NET 10 or newer.</li>
+        <li>NuGet feed issues — check <code>nuget.config</code> for any private feeds your machine can't reach.</li>
+        <li>A previous template install pinned to an older version — reinstall with the <code>@@*</code> suffix shown above.</li>
+    </ul>
+
+    <DocCallout Type="DocCalloutType.Warning">
+        Do <b>not</b> run the app yet. The generated project expects a database that
+        doesn't exist until you run migrations. The next page covers running the
+        sample end-to-end, including the database setup.
+    </DocCallout>
+</DocSection>
+
+<DocSection Title="What's next">
+    <p>
+        Continue to <MudLink Href="/get-started/template-parameters">Template parameters</MudLink>
+        to understand the options the template accepts, then to
+        <MudLink Href="/get-started/project-tour">Project tour</MudLink> to see what each
+        generated project does and how the pieces fit together.
+    </p>
+</DocSection>

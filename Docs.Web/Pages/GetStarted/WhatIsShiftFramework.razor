@@ -1,0 +1,53 @@
+@page "/get-started/what-is-shift-framework"
+
+<DocPageMeta Title="What is Shift Framework?"
+             Section="Get Started"
+             Status="DocPageStatus.Draft"
+             Description="An opinionated full-stack .NET framework for building line-of-business applications."
+             Keywords="overview,introduction,what is,shift framework,shiftentity,shiftblazor" />
+
+<DocSection Title="The short version">
+    <p>
+        Shift Framework is an opinionated, full-stack .NET toolkit for building
+        line-of-business applications — the kind with hundreds of entities,
+        complex permissions, audit trails, file uploads, multi-language UIs,
+        and forms that need to feel solid out of the box.
+    </p>
+    <p>
+        It is built on top of <b>ASP.NET Core</b>, <b>Entity Framework Core</b>,
+        and <b>Blazor</b>, and ships as a set of NuGet packages plus a
+        <code>dotnet new shift</code> project template that wires them together
+        into a runnable solution.
+    </p>
+</DocSection>
+
+<DocSection Title="What you get">
+    <p>The framework is split into focused libraries that can be used together or in isolation:</p>
+    <ul>
+        <li><b>ShiftEntity</b> — base entities, repositories, DTO conventions (View / List / Upsert), soft delete, audit fields, OData query pipeline.</li>
+        <li><b>ShiftBlazor</b> — a MudBlazor-based component library tuned for data-heavy admin UIs: lists, forms, lookups, file pickers, dialogs.</li>
+        <li><b>ShiftIdentity</b> — a drop-in identity server with users, roles, multi-tenancy, and integration hooks for the rest of the framework.</li>
+        <li><b>TypeAuth</b> — declarative permission trees that work the same way on the API, on Blazor pages, and in Azure Functions.</li>
+    </ul>
+</DocSection>
+
+<DocSection Title="Who it's for">
+    <p>
+        Shift Framework is built for teams that ship internal tools, ERPs, dealer
+        portals, inventory systems, and similar line-of-business apps — and want
+        to stop reinventing audit fields, lookup grids, and permission checks on
+        every project.
+    </p>
+    <DocCallout Type="DocCalloutType.Tip">
+        If you're building a public marketing site or a consumer-facing mobile
+        app, this is probably not the right fit. Shift is opinionated toward
+        admin UIs and structured data.
+    </DocCallout>
+</DocSection>
+
+<DocSection Title="What's next">
+    <p>
+        Head to <MudLink Href="/get-started/installation">Installation</MudLink>
+        to set up your machine and create your first project.
+    </p>
+</DocSection>

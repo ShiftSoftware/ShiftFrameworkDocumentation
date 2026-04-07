@@ -363,3 +363,6 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+
+# Scratch project produced by Docs.Verify/Scripts/install-and-scaffold.sh during verification runs.
+MyFirstShiftApp/

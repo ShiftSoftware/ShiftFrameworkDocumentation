@@ -11,7 +11,7 @@
     <MudAppBar Class="docs-appbar-filter" Color="Color.Transparent" Elevation="0"></MudAppBar>
     <MudAppBar Color="Color.Transparent" Class="docs-appbar" Elevation="0">
         <div style="padding: 8px 28px;" class="d-flex align-center flex-grow-1 d-md-none">
-            <MudIconButton OnClick="DrawerToggleCallback" Icon="@Icons.Material.Rounded.Notes" Color="Color.Inherit" Edge="Edge.Start" aria-label="Toggle drawer" />
+            <MudIconButton OnClick="@(() => _drawerOpen = !_drawerOpen)" Icon="@Icons.Material.Rounded.Notes" Color="Color.Inherit" Edge="Edge.Start" aria-label="Toggle drawer" />
             <MudSpacer />
             <NavLink ActiveClass="d-flex align-center" href="/">
                 <MudImage Src="@(_isDarkMode ? "shift-dark.png" : "shift.png")" Height="16" Class="pe-5" />
@@ -52,38 +52,14 @@
 
         </div>
     </MudAppBar>
-    @* 
-    <MudDrawer Open="@_drawerOpen" OpenChanged="OnDrawerOpenChanged" ClipMode="DrawerClipMode.Docked" Elevation="0" Breakpoint="Breakpoint.Md" aria-label="Navigation Drawer">
-        <div class="d-block d-md-none">
-            <MudToolBar Dense="true" Gutters="false" Class="docs-gray-bg">
-                <MudIconButton Icon="@Icons.Material.Rounded.Close" Color="Color.Inherit" OnClick="ToggleDrawer" aria-label="Toggle drawer" />
-                <MudSpacer />
-                <AppbarButtons />
-            </MudToolBar>
-
-            @if (_topMenuOpen == true)
-            {
-                <MudNavMenu Color="Color.Primary" Margin="Margin.Dense" Rounded="true" Class="pa-2">
-                    <MudNavLink Href="/getting-started/installation">Get Started</MudNavLink>
-                    <MudNavLink Href="/docs/overview">Docs</MudNavLink>
-                    <MudNavLink Href="/mud/introduction" Match="NavLinkMatch.All">Learn More</MudNavLink>
-                    <MudNavGroup Title="Projects" ExpandIcon="@Icons.Material.Filled.ExpandMore">
-                        <MudListSubheader Class="mt-4 pl-8 pb-2"><b>Official</b></MudListSubheader>
-                        <MudNavLink Href="https://mudblazor.com/">MudBlazor</MudNavLink>
-                        <MudNavLink Href="https://try.mudblazor.com/">TryMudBlazor</MudNavLink>
-                        <MudNavLink Href="https://github.com/MudBlazor/ThemeManager">ThemeManager</MudNavLink>
-                        <MudNavLink Href="https://github.com/MudBlazor/Templates">Templates</MudNavLink>
-                        <MudListSubheader Class="mt-4 pl-8 pb-2"><b>Community</b></MudListSubheader>
-                        <MudNavLink Href="/mud/community/extensions">CommunityExtensions</MudNavLink>
-                    </MudNavGroup>
-                </MudNavMenu>
-            }
-        </div>
-        <MudNavMenu Color="Color.Primary" Rounded="true" Dense="true" Margin="Margin.Dense" Class="pa-2 overflow-auto mb-3">
-            <NavMenu @ref="@_navMenuRef" />
-        </MudNavMenu>
+    <MudDrawer @bind-Open="_drawerOpen"
+               ClipMode="DrawerClipMode.Docked"
+               Elevation="0"
+               Breakpoint="Breakpoint.Md"
+               Variant="DrawerVariant.Responsive"
+               aria-label="Navigation Drawer">
+        <NavMenu />
     </MudDrawer>
-    *@
     <MudMainContent>
         <MudContainer Class="pb-10" MaxWidth="MaxWidth.False">
             @Body
@@ -126,6 +102,30 @@
         text-transform: none;
     }
 
+    /* Widen the docs nav drawer so long page titles fit on one line. */
+    .mud-drawer.mud-drawer-responsive {
+        width: 280px;
+    }
+
+    /* Page-status indicator dot prefixed before each nav link's title. */
+    .nav-status-dot {
+        display: inline-block;
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        margin-right: 8px;
+        vertical-align: middle;
+        flex-shrink: 0;
+    }
+
+    .nav-status-draft {
+        background-color: var(--mud-palette-warning);
+    }
+
+    .nav-status-reviewed {
+        background-color: var(--mud-palette-info);
+    }
+
 </style>
 
 @code {
@@ -141,6 +141,7 @@
     public bool DisplaySearchBar { get; set; } = true;
 
     private bool _isDarkMode;
+    private bool _drawerOpen = true;
     private MudThemeProvider? _mudThemeProvider;
     private MudTheme _theme = new()
     {

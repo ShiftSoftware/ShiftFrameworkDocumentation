@@ -1,0 +1,35 @@
+@*
+    DocSnippet — fetches a named snippet (extracted by Docs.SnippetGen from
+    a // snippet:Name ... // endsnippet region) and renders it via CodeViewer.
+
+    Usage:
+        <DocSnippet Name="UpsertEndpoint" />
+        <DocSnippet Name="UpsertEndpoint" Language="cs" Highlight="3-5" />
+
+    Language defaults to "cs". Use "razor", "ts", "js", or "css" otherwise.
+*@
+
+@inject Docs.Web.Helpers.DocFileHelper DocFiles
+
+@if (file is not null)
+{
+    <CodeViewer file="file" />
+}
+
+@code {
+    [Parameter, EditorRequired] public string Name { get; set; } = default!;
+    [Parameter] public string Language { get; set; } = "cs";
+    [Parameter] public string? Highlight { get; set; }
+    [Parameter] public bool Downloadable { get; set; } = true;
+
+    private Docs.Web.Interfaces.CodeFile? file;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        file = await DocFiles.GetSnippetByName(
+            Name,
+            downloadable: Downloadable,
+            prismClass: $"language-{Language}",
+            lineheighlight: Highlight ?? "");
+    }
+}
