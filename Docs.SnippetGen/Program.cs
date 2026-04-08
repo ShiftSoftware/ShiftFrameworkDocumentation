@@ -232,11 +232,27 @@ static SearchEntry? ExtractPageMeta(string razorFile)
     if (!pageMatch.Success) return null;
     var url = pageMatch.Groups[1].Value;
 
-    // Pull the <DocPageMeta ... /> tag (allow multi-line)
-    var metaMatch = Regex.Match(text, @"<DocPageMeta\b([^/>]*)/>", RegexOptions.Singleline);
-    if (!metaMatch.Success) return null;
+    // Pull the <DocPageMeta ... /> tag (allow multi-line, allow < / > inside quoted attr values).
+    // Non-greedy match stops at the first /> closing the tag.
+    var metaMatch = Regex.Match(text, @"<DocPageMeta\b(.*?)/>", RegexOptions.Singleline);
+    if (!metaMatch.Success)
+    {
+        // Warn loudly if the page mentions DocPageMeta but we couldn't parse it —
+        // silently dropping the page from the search index is a much worse bug
+        // than a noisy build line.
+        if (text.Contains("DocPageMeta", StringComparison.Ordinal))
+        {
+            Console.WriteLine($"[SnippetGen] warning: {razorFile} mentions DocPageMeta but no <DocPageMeta ... /> tag was parseable. Page will be missing from the nav and search index.");
+        }
+        return null;
+    }
 
     var attrs = metaMatch.Groups[1].Value;
+    var orderRaw = ExtractAttr(attrs, "Order");
+    int order = int.MaxValue;
+    if (!string.IsNullOrEmpty(orderRaw) && int.TryParse(orderRaw, out var parsed))
+        order = parsed;
+
     return new SearchEntry
     {
         Url = url,
@@ -246,6 +262,7 @@ static SearchEntry? ExtractPageMeta(string razorFile)
         Description = ExtractAttr(attrs, "Description"),
         Keywords = ExtractAttr(attrs, "Keywords"),
         TestedAgainst = ExtractAttr(attrs, "TestedAgainst"),
+        Order = order,
     };
 }
 
@@ -298,4 +315,5 @@ class SearchEntry
     public string? Description { get; set; }
     public string? Keywords { get; set; }
     public string? TestedAgainst { get; set; }
+    public int Order { get; set; } = int.MaxValue;
 }

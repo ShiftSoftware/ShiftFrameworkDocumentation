@@ -1,0 +1,173 @@
+@page "/concepts/dto-pattern"
+
+<DocPageMeta Title="The DTO pattern"
+             Section="Concepts"
+             Order="20"
+             Status="DocPageStatus.Draft"
+             Description="Why every Shift entity has two DTOs (ViewAndUpsert and List), how they differ, and when each one is used."
+             Keywords="dto,viewdto,listdto,upsertdto,viewandupsertdto,shiftentityselectdto,hashid,projection" />
+
+<DocSection Title="Two DTOs per entity">
+    <p>
+        Every entity in a Shift Framework project has exactly <b>two</b> DTOs.
+        Not three, not one — two:
+    </p>
+    <ul>
+        <li><code>FooDTO : ShiftEntityViewAndUpsertDTO</code> — used for reading a single record AND for inserting or updating it.</li>
+        <li><code>FooListDTO : ShiftEntityListDTO</code> — used for list and grid projections.</li>
+    </ul>
+
+    <p>
+        The two DTOs typically share most of their fields but differ in two
+        important ways: how they shape foreign keys, and what the framework adds
+        to each base class.
+    </p>
+</DocSection>
+
+<DocSection Title="Why merge View and Upsert">
+    <p>
+        Most ASP.NET Core tutorials teach the &quot;CQRS triad&quot; — separate
+        <code>CreateFooRequest</code>, <code>UpdateFooRequest</code>, and
+        <code>FooResponse</code> classes. Shift Framework merges View and Upsert
+        into a single class instead. The reason is empirical: in line-of-business
+        admin apps, the same form is almost always used to <b>view</b> a record
+        and to <b>edit</b> it. Same fields, same validation, same layout — only
+        the mode (read-only vs editable) changes.
+    </p>
+
+    <p>
+        Maintaining two near-identical DTOs that drift over time is more
+        painful than maintaining one. The framework's <code>ShiftEntityForm</code>
+        component takes a <code>T</code> generic parameter that's the same for
+        both modes — you bind it to a single DTO class and the form switches
+        between view and edit by parameter, not by changing types.
+    </p>
+
+    <DocCallout Type="DocCalloutType.Note">
+        If you have an entity where create and update genuinely diverge — for
+        example, a User entity where create takes an initial password and update
+        never does — you typically handle it with a custom controller method that
+        accepts a different shape, not by splitting the main DTO. The DTO stays
+        merged for the 95% of cases where it's the same form.
+    </DocCallout>
+</DocSection>
+
+<DocSection Title="What the base classes give you">
+    <p>The two base DTO classes inherit from a common <code>ShiftEntityDTOBase</code>:</p>
+    <DocCodeBlock Code="@(@"// Common base — every DTO has these
+public abstract class ShiftEntityDTOBase
+{
+    public abstract string? ID { get; set; }
+    public bool IsDeleted { get; set; }
+}
+
+// View+Upsert adds the four audit fields
+public abstract class ShiftEntityViewAndUpsertDTO : ShiftEntityDTOBase
+{
+    public DateTimeOffset CreateDate { get; set; }
+    public DateTimeOffset LastSaveDate { get; set; }
+    public string? CreatedByUserID { get; set; }
+    public string? LastSavedByUserID { get; set; }
+}
+
+// List adds a Revisions collection (audit history) but NO audit timestamps
+public abstract class ShiftEntityListDTO : ShiftEntityDTOBase
+{
+    [JsonIgnore]
+    public List<RevisionDTO> Revisions { get; set; } = new();
+}")" />
+
+    <p>
+        Notice that <b>List DTOs don't carry audit timestamps</b>. Lists are
+        typically dense grids where you wouldn't show <code>CreateDate</code> in
+        every row anyway. The View DTO has them so the form can show "Created by
+        John on March 12" in a side panel.
+    </p>
+</DocSection>
+
+<DocSection Title="The IDs are strings, not longs">
+    <p>
+        On the database side, every entity has a <code>long ID</code>. On the
+        wire, every DTO has a <code>string? ID</code>. The conversion happens in
+        the framework's mapping layer, which encodes the <code>long</code> as an
+        opaque hashid before serializing.
+    </p>
+
+    <p>
+        The encoded string looks something like <code>"vBz0G2"</code> instead of
+        <code>1234</code>. This serves two purposes:
+    </p>
+    <ol>
+        <li><b>It prevents ID enumeration.</b> Without hashids, an admin URL like <code>/Product/1234</code> tells anyone who can see it that there are at least 1234 products and lets them probe <code>/Product/1235</code>, <code>/Product/1236</code>, and so on. Hashids make this attack class non-trivial.</li>
+        <li><b>It keeps URLs and JSON consistent.</b> The same encoded string appears in URLs, in form bindings, and in JSON request/response bodies — there's never a place where the client has to know the underlying numeric ID.</li>
+    </ol>
+
+    <p>
+        Each entity gets its own hashid alphabet (configured per-entity via attributes
+        like <code>[BrandHashIdConverter]</code>) so a Brand ID and a Product ID
+        with the same underlying number look completely different on the wire.
+    </p>
+
+    <DocCallout Type="DocCalloutType.Tip">
+        You'll occasionally need the underlying <code>long</code> — for example,
+        when querying related entities by foreign key in custom code. Use the
+        framework's hashid helpers (<code>id.DecodeHashId&lt;Brand&gt;()</code> and
+        the inverse) rather than reaching for the raw value directly.
+    </DocCallout>
+</DocSection>
+
+<DocSection Title="The real difference between View and List: foreign keys">
+    <p>
+        The most non-obvious difference between the two DTOs is how they
+        represent foreign keys. Here's a real example from a production codebase:
+    </p>
+
+    <DocCodeBlock Code="@(@"// View+Upsert — foreign key as a structured object
+public class AutolineBrandMappingDTO : ShiftEntityViewAndUpsertDTO
+{
+    public override string? ID { get; set; }
+    public string AutolineCode { get; set; } = default!;
+    public string BrandAbbreviation { get; set; } = default!;
+
+    [BrandHashIdConverter]
+    public ShiftEntitySelectDTO Brand { get; set; } = default!;   // ← structured
+}
+
+// List — foreign key as a plain ID string
+public class AutolineBrandMappingListDTO : ShiftEntityListDTO
+{
+    public override string? ID { get; set; }
+    public string AutolineCode { get; set; } = default!;
+    public string BrandAbbreviation { get; set; } = default!;
+
+    [BrandHashIdConverter]
+    public string? BrandID { get; set; } = default!;              // ← flat
+}")" />
+
+    <p>
+        Why the asymmetry? The two DTOs are bound to two different UI patterns:
+    </p>
+    <ul>
+        <li><b>Forms (View+Upsert)</b> need the related entity's display name to render an autocomplete picker. <code>ShiftEntitySelectDTO</code> carries both <code>Value</code> (the ID) and <code>Text</code> (the label) so the picker can show "Toyota" while binding the underlying brand ID.</li>
+        <li><b>Grids (List)</b> need flat columns. The framework's grid component projects each row directly into table cells, and a nested object like <code>ShiftEntitySelectDTO</code> doesn't fit a column. A plain <code>BrandID</code> (or a <code>BrandName</code> string if you want the display name in the column) is what the grid wants.</li>
+    </ul>
+</DocSection>
+
+<DocSection Title="When to use which DTO">
+    <p>The framework picks for you in most cases:</p>
+    <ul>
+        <li><b>Single-record endpoints</b> (<code>GET /api/Foo/{id}</code>, <code>POST /api/Foo</code>, <code>PUT /api/Foo/{id}</code>) automatically use <code>FooDTO</code> as both the request and response shape.</li>
+        <li><b>List endpoints</b> (<code>GET /api/Foo</code> with OData query options) automatically project to <code>FooListDTO</code> via the OData query pipeline. The mapper's <code>MapToList(IQueryable&lt;Foo&gt;)</code> method tells EF Core exactly which columns to <code>SELECT</code>, so list responses are efficient.</li>
+        <li><b>Custom endpoints</b> (e.g. a "search" or "report" endpoint) typically still use one of the two existing DTOs rather than introducing a third shape, even if some fields go unused.</li>
+    </ul>
+</DocSection>
+
+<DocSection Title="What's next">
+    <p>
+        Now that you understand entities and their DTOs, the next page covers
+        <MudLink Href="/concepts/repositories">Repositories and the request lifecycle</MudLink>
+        — how a request flows from a controller through a repository to the database
+        and back, where business logic lives, and how the audit fields and soft
+        deletes happen automatically along the way.
+    </p>
+</DocSection>

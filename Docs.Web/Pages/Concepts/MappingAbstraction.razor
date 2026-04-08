@@ -1,0 +1,221 @@
+@page "/concepts/mapping-abstraction"
+
+<DocPageMeta Title="The mapping abstraction"
+             Section="Concepts"
+             Order="40"
+             Status="DocPageStatus.Draft"
+             Description="How the repository translates between entities and DTOs, what IShiftEntityMapper is, and how to choose between AutoMapper, Manual, Mapperly, and Mapster mapping strategies."
+             Keywords="mapping,mapper,ishiftentitymapper,automapper,manual,mapperly,mapster,strategy,dto,entity" />
+
+<DocSection Title="Why a mapping abstraction">
+    <p>
+        Repositories spend most of their time translating between two shapes:
+        the <b>entity</b> (what the database stores) and the <b>DTO</b> (what
+        crosses the wire). For a long time, Shift Framework hard-coded
+        AutoMapper as the way to do that translation. That created two problems:
+    </p>
+    <ul>
+        <li>
+            <b>Implicit flattening risk.</b> AutoMapper silently maps
+            <code>Vehicle.VIN</code> into <code>VehicleVIN</code> via naming
+            convention, which can leak data unintentionally. There's no compile-time
+            check that the mapping you got is the mapping you wanted.
+        </li>
+        <li>
+            <b>Runtime errors.</b> Mapping bugs surface at runtime when the
+            mapper actually runs, not at build time when you'd prefer to catch them.
+            Forgetting to register a profile typically blows up on the first request
+            against the affected endpoint.
+        </li>
+    </ul>
+
+    <p>
+        The solution: introduce <code>IShiftEntityMapper</code> as the single
+        mapping abstraction that the repository talks to. AutoMapper becomes
+        one possible implementation rather than the only one. Consumers can
+        choose between AutoMapper, hand-written manual mappers, source-generated
+        Mapperly mappers, or Mapster — picking whatever trade-off fits the
+        project — and the repository code stays identical.
+    </p>
+</DocSection>
+
+<DocSection Title="The interface">
+    <p>The contract is four methods:</p>
+
+    <DocCodeBlock Code="@(@"public interface IShiftEntityMapper<TEntity, TListDTO, TViewDTO>
+{
+    TViewDTO MapToView(TEntity entity);
+    TEntity MapToEntity(TViewDTO dto, TEntity existing);
+    IQueryable<TListDTO> MapToList(IQueryable<TEntity> query);
+    void CopyEntity(TEntity source, TEntity target);
+}")" />
+
+    <ul>
+        <li><code>MapToView</code> — translate a single entity into its View+Upsert DTO. Used after a save and on get-by-id endpoints.</li>
+        <li><code>MapToEntity</code> — merge an incoming DTO into an existing tracked entity. The repository hands you the entity (empty for inserts, loaded for updates) and you populate its fields from the DTO.</li>
+        <li><code>MapToList</code> — project an <code>IQueryable&lt;TEntity&gt;</code> into an <code>IQueryable&lt;TListDTO&gt;</code>. <b>Crucially still an IQueryable</b>, so EF Core can translate the projection into a SELECT clause and pull only the columns the list DTO needs.</li>
+        <li><code>CopyEntity</code> — entity-to-entity field copy, used by <code>ReloadAfterSave</code> to merge a freshly-loaded entity with navigation properties back onto the tracked instance.</li>
+    </ul>
+
+    <DocCallout Type="DocCalloutType.Note">
+        <code>MapToList</code> is the only method that has to operate on
+        <code>IQueryable</code> rather than concrete instances. This is what
+        keeps list endpoints efficient — without it, the framework would have
+        to load entire entities into memory and project in C#, defeating
+        the OData query pipeline.
+    </DocCallout>
+</DocSection>
+
+<DocSection Title="The four supported strategies">
+    <p>
+        Shift Framework's <code>StockPlusPlus</code> sample ships working
+        mappers for all four strategies, and you can switch between them at
+        runtime via <code>appsettings.json</code>. Each one is a different
+        trade-off between how much boilerplate you write, what gets caught at
+        compile time versus runtime, and how much hidden behavior the framework
+        applies on your behalf.
+    </p>
+
+    <h3>1. AutoMapper (the historical default)</h3>
+    <ul>
+        <li><b>Pros:</b> Convention-based mapping. Zero per-field code for entities whose DTOs match by name. Familiar to most .NET developers.</li>
+        <li><b>Cons:</b> The conventions are exactly the problem — silent flattening, runtime-only errors, no compile-time guarantee that a property is mapped. Adds runtime reflection overhead.</li>
+        <li><b>When to pick it:</b> Greenfield projects that can lean fully into the conventions, or existing projects already invested in AutoMapper profiles.</li>
+    </ul>
+
+    <h3>2. Manual</h3>
+    <ul>
+        <li><b>Pros:</b> Full explicit control. No magic. The mapping is just C# code you can step through with a debugger. Completely compile-time safe.</li>
+        <li><b>Cons:</b> Verbose. Every field is typed twice (once on the DTO, once in the mapper). Refactoring an entity means manually updating every mapping site.</li>
+        <li><b>When to pick it:</b> Projects with complex mappings that don't fit conventions (e.g. heavy use of <code>ShiftEntitySelectDTO</code>, <code>ShiftFileDTO</code>, JSON columns, computed values), or teams that strongly prefer "no magic."</li>
+    </ul>
+
+    <h3>3. Mapperly (source-generated)</h3>
+    <ul>
+        <li><b>Pros:</b> A Roslyn source generator emits the mapper at compile time. Zero runtime reflection. Compile-time errors when source and target don't line up. Fast.</li>
+        <li><b>Cons:</b> Adds a source-generator dependency. Some framework-specific patterns (FK conversions, file DTOs, navigation property projections) still need to be hand-written wrappers around the generated scalar mapping. The generated code is bound to the exact field names — renames need a recompile.</li>
+        <li><b>When to pick it:</b> Performance-sensitive projects, or teams that want compile-time mapping safety without writing every field by hand.</li>
+    </ul>
+
+    <h3>4. Mapster</h3>
+    <ul>
+        <li><b>Pros:</b> Fluent <code>TypeAdapterConfig</code> API. Much more concise than Mapperly's per-field attribute style. Easy migration from AutoMapper because the mental model is similar (convention-based with explicit overrides).</li>
+        <li><b>Cons:</b> Same convention-based flattening risk as AutoMapper, just with a different API. Still requires explicit ignore lists for base class properties and circular navigation references.</li>
+        <li><b>When to pick it:</b> Migrating from AutoMapper but wanting better runtime performance and a more controllable surface.</li>
+    </ul>
+</DocSection>
+
+<DocSection Title="Switching strategies via appsettings">
+    <p>
+        The default <code>shift</code> template registers all four mapping
+        strategies in DI but only activates one of them based on a config
+        setting. To switch, edit
+        <code>YourApp.API/appsettings.json</code>:
+    </p>
+
+    <DocCodeBlock Language="json" Code="@(@"{
+    ""MappingStrategy"": ""Manual""
+}")" />
+
+    <p>
+        Valid values are <code>AutoMapper</code> (default), <code>Manual</code>,
+        <code>Mapperly</code>, and <code>Mapster</code>. The
+        <code>Program.cs</code> composition root reads this setting and
+        registers the matching mapper implementation as
+        <code>IShiftEntityMapper&lt;TEntity, TListDTO, TViewDTO&gt;</code> for
+        each entity. The repository's two-constructor pattern (one accepting
+        <code>IShiftEntityMapper</code>, one falling back to AutoMapper) does
+        the rest — DI picks the explicit mapper when it's registered.
+    </p>
+
+    <DocCallout Type="DocCalloutType.Tip">
+        Switching strategies is a runtime decision per project, not a
+        framework-wide one. Two projects in the same organization can use
+        different strategies based on their needs. The framework's
+        <code>ShiftRepository</code> code is identical regardless.
+    </DocCallout>
+</DocSection>
+
+<DocSection Title="Mapping helpers (for manual and Mapperly)">
+    <p>
+        Hand-writing mappers gets tedious fast for entities with audit fields,
+        foreign keys, and file references — these patterns repeat for every
+        mapper you write. <code>ShiftEntity.Core</code> ships a small set of
+        extension method helpers that take the boilerplate away while keeping
+        the mapping itself explicit:
+    </p>
+    <ul>
+        <li><code>dto.MapBaseFields(entity)</code> — copies <code>ID</code>, <code>IsDeleted</code>, and the four audit fields from entity to view DTO. Returns the DTO for fluent chaining.</li>
+        <li><code>id.ToSelectDTO(text)</code> — converts a foreign key (<code>long</code> or <code>long?</code>) into a <code>ShiftEntitySelectDTO</code> with both the ID and the navigation property's display label.</li>
+        <li><code>selectDTO.ToForeignKey()</code> / <code>.ToNullableForeignKey()</code> — the reverse: pull the underlying <code>long</code>/<code>long?</code> back out of a SelectDTO.</li>
+        <li><code>json.ToShiftFiles()</code> / <code>files.ToJsonString()</code> — convert between a JSON column and a <code>List&lt;ShiftFileDTO&gt;</code> for entities that store file metadata in a JSON blob.</li>
+        <li><code>source.ShallowCopyTo(target)</code> — reflection-based shallow copy of all settable properties; used by manual implementations of <code>CopyEntity</code> for the <code>ReloadAfterSave</code> path.</li>
+    </ul>
+
+    <p>
+        With these helpers, a typical manual mapper for a Product entity looks
+        roughly like:
+    </p>
+
+    <DocCodeBlock Code="@(@"public ProductDTO MapToView(Product entity)
+{
+    return new ProductDTO
+    {
+        Name = entity.Name,
+        Price = entity.Price,
+
+        // Foreign key + display label in one call
+        ProductCategory = entity.ProductCategoryID
+            .ToSelectDTO(entity.ProductCategory?.Name),
+
+        ProductBrand = entity.ProductBrandID
+            .ToSelectDTO(entity.ProductBrand?.Name),
+    }
+    .MapBaseFields(entity);   // ID + audit fields, fluent
+}")" />
+
+    <p>
+        The result is mapping code that's still explicit (every field is
+        visible) but doesn't drown in <code>CreateDate = entity.CreateDate</code>
+        repetitions.
+    </p>
+</DocSection>
+
+<DocSection Title="A practical recommendation">
+    <p>
+        If you're starting a new project today, the honest recommendation is:
+    </p>
+    <ul>
+        <li>
+            <b>Start with AutoMapper</b> if you're learning the framework and
+            want the lowest friction. The default template registers it; you
+            don't have to think about it.
+        </li>
+        <li>
+            <b>Switch to Manual</b> the moment you hit a mapping bug that
+            should have been a compile error, or the moment you find yourself
+            hand-coding around a flattening rule. Manual is the most boring,
+            most predictable choice — and "boring and predictable" is what you
+            want from a mapping layer.
+        </li>
+        <li>
+            <b>Use Mapperly</b> if you have measured a real bottleneck in
+            mapping performance and need to eliminate runtime reflection. Don't
+            reach for it speculatively.
+        </li>
+        <li>
+            <b>Use Mapster</b> if you're migrating an existing AutoMapper
+            project and want a similar API with better runtime characteristics.
+        </li>
+    </ul>
+</DocSection>
+
+<DocSection Title="What's next">
+    <p>
+        The next concept page covers
+        <MudLink Href="/concepts/typeauth">TypeAuth permissions</MudLink> —
+        how the framework's permission tree drives <code>[Authorize]</code>
+        on the API and conditional rendering on the Blazor frontend from a
+        single declaration.
+    </p>
+</DocSection>

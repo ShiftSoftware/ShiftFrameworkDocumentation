@@ -1,6 +1,7 @@
 ﻿@using MudBlazor
 @inherits LayoutComponentBase
 @inject NavigationManager NavigationManager
+@inject IJSRuntime JS
 
 <MudThemeProvider @bind-IsDarkMode="@_isDarkMode" Theme="_theme" @ref="_mudThemeProvider" />
 <MudPopoverProvider />
@@ -164,6 +165,10 @@
             _isDarkMode = await _mudThemeProvider.GetSystemDarkModeAsync();
             StateHasChanged();
         }
+
+        // Keep Prism's dark theme stylesheet in sync with the current dark mode
+        // state. Cheap and idempotent — runs on every render.
+        await JS.InvokeVoidAsync("setPrismDarkTheme", _isDarkMode);
     }
 
     private Task OnSystemDarkModeChanged(bool newValue)

@@ -1,0 +1,187 @@
+@page "/concepts/repositories"
+
+<DocPageMeta Title="Repositories and the request lifecycle"
+             Section="Concepts"
+             Order="30"
+             Status="DocPageStatus.Draft"
+             Description="How a request flows from the controller through the repository to the database and back, where business logic lives, and how audit fields and soft deletes happen automatically along the way."
+             Keywords="repository,shiftrepository,controller,upsert,find,savechanges,beforesave,aftersave,request lifecycle,business logic" />
+
+<DocSection Title="Where business logic lives">
+    <p>
+        In a Shift Framework project, business logic lives in <b>repositories</b>,
+        not in controllers. Controllers are thin glue that handles HTTP, validates
+        permissions, and delegates everything else to a repository. This is
+        consistent across every entity in the framework — once you've seen one
+        controller, you've seen them all.
+    </p>
+
+    <p>
+        Each entity has exactly one repository, and each repository inherits from
+        the framework's <code>ShiftRepository&lt;DB, Entity, ListDTO, ViewAndUpsertDTO&gt;</code>
+        base class. The base provides the standard CRUD methods
+        (<code>FindAsync</code>, <code>UpsertAsync</code>, <code>DeleteAsync</code>,
+        <code>ViewAsync</code>, <code>OdataList</code>) and the lifecycle plumbing
+        around them (audit fields, soft delete, transactions, hooks). Your job is
+        to override what's specific to your entity and let the base handle the rest.
+    </p>
+
+    <DocCodeBlock Code="@(@"public class ProductRepository
+    : ShiftRepository<DB, Product, ProductListDTO, ProductDTO>
+{
+    public ProductRepository(DB db) : base(db) { }
+
+    // Most repositories add nothing else. Custom hooks go here when needed.
+}")" />
+</DocSection>
+
+<DocSection Title="The standard controller">
+    <p>
+        The matching controller is a five-line wrapper around the repository.
+        It inherits from <code>ShiftEntitySecureControllerAsync</code>, which
+        provides REST endpoints (<code>GET</code>, <code>GET /{id}</code>,
+        <code>POST</code>, <code>PUT /{id}</code>, <code>DELETE /{id}</code>)
+        wired to the matching repository methods:
+    </p>
+
+    <DocCodeBlock Code="@(@"[Route(""api/[controller]"")]
+public class ProductController : ShiftEntitySecureControllerAsync<
+    ProductRepository, Product, ProductListDTO, ProductDTO>
+{
+    public ProductController() : base(StockPlusPlusActionTree.Product) { }
+}")" />
+
+    <p>
+        The single argument to the base constructor is the TypeAuth permission
+        node for this entity (or <code>null</code> for an unprotected endpoint).
+        The base controller uses it on every action to enforce read/write/delete
+        permissions before touching the repository.
+    </p>
+
+    <DocCallout Type="DocCalloutType.Note">
+        You can absolutely add custom controller methods for non-CRUD operations
+        (e.g. a <code>POST /api/Product/import</code> for bulk import). But the
+        five standard CRUD endpoints come from the base — you don't write them.
+    </DocCallout>
+</DocSection>
+
+<DocSection Title="The lifecycle of a single-record write">
+    <p>Here's what happens when a Blazor form posts a <code>ProductDTO</code> to <code>POST /api/Product</code>:</p>
+    <ol>
+        <li><b>Auth check.</b> The controller's <code>Post</code> action calls <code>typeAuthService.CanWrite(action)</code> using the permission node from its constructor. If the current user can't write, it returns <code>403 Forbidden</code> immediately.</li>
+        <li><b>UpsertAsync.</b> The controller delegates to the repository's <code>UpsertAsync</code>, passing a fresh empty entity, the incoming DTO, and the action type (<code>Insert</code> for POST, <code>Update</code> for PUT).</li>
+        <li><b>MapToEntity.</b> Inside <code>UpsertAsync</code>, the repository's mapper translates the DTO into an entity instance. For inserts the entity is empty; for updates the existing entity is loaded first and the DTO fields are merged into it.</li>
+        <li><b>Audit fields.</b> The repository calls <code>SetAuditFields</code>, populating <code>CreateDate</code>, <code>LastSaveDate</code>, <code>CreatedByUserID</code>, and <code>LastSavedByUserID</code> from the current user and current timestamp. You never write this code yourself.</li>
+        <li><b>BeforeSave hook (if defined).</b> If your repository implements <code>IShiftEntityHasBeforeSaveHook&lt;T&gt;</code>, the framework calls your <code>BeforeSaveAsync(entity, actionType)</code> method here. This is where you put validation that needs to run with the about-to-be-saved entity in hand (e.g. cross-field rules, derived calculations).</li>
+        <li><b>SaveChangesAsync.</b> The framework calls <code>db.SaveChangesAsync()</code>. EF Core issues the actual SQL <code>INSERT</code> or <code>UPDATE</code>.</li>
+        <li><b>ReloadAfterSave.</b> If the entity has <code>ReloadAfterSave = true</code> (typically because it has navigation properties that the View DTO needs), the framework re-queries the entity with all <code>Include</code>s resolved fresh, and copies the navigation data back onto the tracked instance.</li>
+        <li><b>AfterSave hook (if defined).</b> If your repository implements <code>IShiftEntityHasAfterSaveHook&lt;T&gt;</code>, the framework calls your <code>AfterSaveAsync(entity, actionType)</code>. This runs <b>inside an explicit transaction</b> (see below) so any side effects can roll back if they fail.</li>
+        <li><b>ViewAsync.</b> The controller calls <code>ViewAsync(entity)</code> on the now-saved entity, which uses the mapper's <code>MapToView</code> to produce the response DTO.</li>
+        <li><b>Wrap and return.</b> The DTO is wrapped in <code>ShiftEntityResponse&lt;T&gt;</code> (which adds metadata like the OData entity ID URL) and serialized as the HTTP response.</li>
+    </ol>
+</DocSection>
+
+<DocSection Title="The lifecycle of a list query">
+    <p>List queries (<code>GET /api/Product?$filter=Name+eq+'Toyota'&$orderby=Price+desc</code>) take a different path that's optimized for projection at the database level:</p>
+    <ol>
+        <li><b>Auth check.</b> Same as the write path — the action's <code>CanRead</code> permission is checked.</li>
+        <li><b>OdataList.</b> The repository's <code>OdataList</code> method calls <code>MapToList(IQueryable&lt;Entity&gt;)</code>, which produces an <code>IQueryable&lt;ListDTO&gt;</code> via the mapper. <b>Crucially, this is still an unevaluated query at this point</b> — no SQL has been executed yet.</li>
+        <li><b>OData applies query options.</b> The OData pipeline takes the <code>IQueryable&lt;ListDTO&gt;</code> and applies <code>$filter</code>, <code>$orderby</code>, <code>$skip</code>, <code>$top</code>, and <code>$select</code> on top of it. These translate into SQL <code>WHERE</code>, <code>ORDER BY</code>, <code>OFFSET</code>, <code>FETCH NEXT</code>, and column selection.</li>
+        <li><b>EF executes a single SELECT.</b> The fully-shaped query runs once. Only the columns the client asked for are pulled from the database.</li>
+        <li><b>Wrap and return.</b> Results are wrapped in <code>ODataDTO&lt;ListDTO&gt;</code> with a count and returned as JSON.</li>
+    </ol>
+
+    <DocCallout Type="DocCalloutType.Tip">
+        Because the entire list pipeline operates on <code>IQueryable</code>, your
+        list endpoints are <b>cheap by default</b>. There's no in-memory sort, no
+        load-everything-then-filter, no N+1 query. If you find yourself wanting
+        to do something the OData pipeline can't translate (e.g. a custom join
+        that depends on runtime state), drop into a custom controller method
+        rather than fighting the pipeline.
+    </DocCallout>
+</DocSection>
+
+<DocSection Title="Hooks: BeforeSave and AfterSave">
+    <p>
+        Most repositories don't need lifecycle hooks. The audit fields, soft
+        delete, and ReloadAfterSave flow happen automatically. But sometimes you
+        need to run code at a specific point — and the framework provides two
+        opt-in interfaces for that:
+    </p>
+
+    <DocCodeBlock Code="@(@"public class ProductRepository
+    : ShiftRepository<DB, Product, ProductListDTO, ProductDTO>,
+      IShiftEntityHasBeforeSaveHook<Product>,
+      IShiftEntityHasAfterSaveHook<Product>
+{
+    public ProductRepository(DB db) : base(db) { }
+
+    public ValueTask BeforeSaveAsync(Product entity, ActionTypes action)
+    {
+        // Validation, derived calculations, normalization.
+        // Throws here become 4xx errors automatically.
+        if (entity.Price < 0)
+            throw new ShiftEntityException(
+                new Message(""Error"", ""Price cannot be negative""));
+        return default;
+    }
+
+    public ValueTask AfterSaveAsync(Product entity, ActionTypes action)
+    {
+        // Side effects: send a notification, write to a queue, log to audit.
+        // Runs INSIDE a transaction — if you throw here, the SaveChanges
+        // is rolled back too.
+        return default;
+    }
+}")" />
+
+    <p>
+        The framework discovers these interfaces with a runtime check
+        (<code>this is IShiftEntityHasBeforeSaveHook&lt;T&gt;</code>) in the
+        repository's constructor. There's no registration step — implement the
+        interface and the hook runs.
+    </p>
+
+    <DocCallout Type="DocCalloutType.Warning">
+        Implementing <code>AfterSaveAsync</code> changes the save path: the
+        framework wraps <code>SaveChangesAsync</code> + your <code>AfterSave</code>
+        in an explicit transaction so that a failure in <code>AfterSave</code>
+        rolls the database write back too. This adds a small amount of overhead
+        compared to repositories without an AfterSave hook (which use EF's
+        implicit transaction). Don't add an empty <code>AfterSaveAsync</code>
+        "just in case" — only implement it when you actually need transactional
+        side effects.
+    </DocCallout>
+</DocSection>
+
+<DocSection Title="What the controller and repository together give you">
+    <p>For each new entity in your app, the four-line controller plus the few-line repository together provide:</p>
+    <ul>
+        <li>Five REST/OData endpoints (list with full query options, get-by-id, post, put, delete)</li>
+        <li>TypeAuth permission enforcement on every endpoint</li>
+        <li>Automatic audit field population on every write</li>
+        <li>Soft-delete-by-default with the option to hard-delete</li>
+        <li>Idempotency key support for safe retries</li>
+        <li>Optional uniqueness enforcement via <code>IEntityHasUniqueHash</code></li>
+        <li>Friendly error handling that turns SQL constraint violations into typed <code>409 Conflict</code> responses</li>
+        <li>OData query translation for efficient list endpoints</li>
+        <li>Hooks for custom validation and side effects</li>
+        <li>Default data-level access filtering (e.g. "only show rows belonging to the user's company")</li>
+    </ul>
+
+    <p>
+        That's a lot of behavior to get for free. The price you pay is consistency:
+        every entity in your app uses the same pattern, so once you understand one
+        repository, you understand them all.
+    </p>
+</DocSection>
+
+<DocSection Title="What's next">
+    <p>
+        The next page covers the
+        <MudLink Href="/concepts/mapping-abstraction">mapping abstraction</MudLink> —
+        how the repository translates between entities and DTOs, what
+        <code>IShiftEntityMapper</code> is, and how to choose between AutoMapper,
+        Manual, Mapperly, and Mapster mapping strategies.
+    </p>
+</DocSection>

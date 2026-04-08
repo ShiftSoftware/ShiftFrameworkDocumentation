@@ -1,0 +1,129 @@
+@page "/get-started/template-parameters"
+
+<DocPageMeta Title="Template parameters"
+             Section="Get Started"
+             Order="30"
+             Status="DocPageStatus.Draft"
+             Description="Every parameter the dotnet new shift template accepts, what it controls, and when to change it."
+             Keywords="template,parameters,dotnet new shift,includeSampleApp,shiftIdentityHostingType,addFunctions,addTest,external identity" />
+
+<DocSection Title="Required parameters">
+    <p>
+        Two parameters must be passed every time you run <code>dotnet new shift</code>.
+        The CLI will refuse to scaffold without them.
+    </p>
+
+    <h3><code>--includeSampleApp</code></h3>
+    <p><b>Type:</b> boolean &nbsp;&nbsp; <b>Default:</b> <code>true</code></p>
+    <p>
+        Controls whether the generated project ships with the <b>StockPlusPlus</b>
+        sample app — a working inventory system covering products, brands, categories,
+        invoices, file uploads, lookups, and a Blazor admin UI. The sample exists so
+        you have something runnable from the very first build instead of an empty
+        skeleton.
+    </p>
+    <ul>
+        <li><code>true</code> — generate the full sample, including controllers, repositories, DTOs, entities, AutoMapper profiles, mappers, action trees, and Blazor pages. <b>Recommended for your first project.</b></li>
+        <li><code>false</code> — generate a clean skeleton with only the framework wiring (Program.cs, DbContext, identity setup) and no business code. Pick this when you already understand the framework and want a blank canvas.</li>
+    </ul>
+
+    <h3><code>--shiftIdentityHostingType</code></h3>
+    <p><b>Type:</b> choice &nbsp;&nbsp; <b>Default:</b> <code>Internal</code> &nbsp;&nbsp; <b>Values:</b> <code>Internal</code> | <code>External</code></p>
+    <p>Controls how ShiftIdentity (the user/role/permission backend) is hosted:</p>
+    <ul>
+        <li><code>Internal</code> — ShiftIdentity runs <b>inside</b> the same API process as your app. Identity tables live in the same database, identity endpoints (<code>/IdentityPublicUser</code>, the dashboard, etc.) are exposed by your API, and there's nothing else to deploy. <b>This is the right choice for almost every new project.</b></li>
+        <li><code>External</code> — your app does <b>not</b> host identity. It expects a separate ShiftIdentity instance to authenticate against. Pick this only when you already run a central ShiftIdentity that multiple downstream apps share. You'll also need to set <code>--externalShiftIdentityApi</code> and <code>--externalShiftIdentityFrontEnd</code> below.</li>
+    </ul>
+
+    <DocCallout Type="DocCalloutType.Tip">
+        If you're not sure, choose <code>Internal</code>. You can always migrate to
+        an external setup later — but starting with <code>Internal</code> means
+        fewer moving parts to deploy and debug while you're learning the framework.
+    </DocCallout>
+</DocSection>
+
+<DocSection Title="Optional parameters">
+    <h3><code>--addFunctions</code></h3>
+    <p><b>Type:</b> boolean &nbsp;&nbsp; <b>Default:</b> <code>false</code></p>
+    <p>
+        Adds an Azure Functions project (<code>YourApp.Functions</code>) alongside
+        the API. Use this when your project needs scheduled jobs (timer triggers),
+        queue/blob handlers, or background processing that lives outside the API
+        request lifecycle. The Functions project comes pre-wired with TypeAuth
+        permissions and Shift Framework conventions.
+    </p>
+    <p>
+        Skip this if you're not sure you need it. It's easy enough to add a
+        Functions project later by hand.
+    </p>
+
+    <h3><code>--addTest</code></h3>
+    <p><b>Type:</b> boolean &nbsp;&nbsp; <b>Default:</b> <code>false</code></p>
+    <p>
+        Adds an xUnit integration test project (<code>YourApp.Test</code>) that
+        spins up a real in-memory database and exercises your repositories and
+        controllers end-to-end. Useful for projects that take testing seriously
+        from day one.
+    </p>
+
+    <h3><code>--externalShiftIdentityApi</code></h3>
+    <p><b>Type:</b> string &nbsp;&nbsp; <b>Default:</b> <code>""</code> (empty)</p>
+    <p>
+        <b>Only used when <code>--shiftIdentityHostingType External</code>.</b>
+        Base URL of your external ShiftIdentity API, for example
+        <code>https://identity.example.com</code>. Gets baked into the generated
+        <code>appsettings.json</code> as the <code>ShiftIdentityApi</code> value.
+    </p>
+
+    <h3><code>--externalShiftIdentityFrontEnd</code></h3>
+    <p><b>Type:</b> string &nbsp;&nbsp; <b>Default:</b> <code>""</code> (empty)</p>
+    <p>
+        <b>Only used when <code>--shiftIdentityHostingType External</code>.</b>
+        Base URL of the external ShiftIdentity frontend (the dashboard/login UI).
+        Often the same host as the API. Gets baked into the generated
+        <code>appsettings.json</code> as the <code>ShiftIdentityFrontEnd</code> value.
+    </p>
+</DocSection>
+
+<DocSection Title="Auto-generated values you don't pass">
+    <p>
+        A few values are computed by the template engine itself when it scaffolds
+        your project. You don't need to set these, but it's worth knowing they
+        exist so you understand what's in your generated files.
+    </p>
+    <ul>
+        <li><b>User secret IDs</b> — fresh GUIDs for the API and Functions projects, used by the .NET user-secrets store so each developer's local secrets stay scoped to their project.</li>
+        <li><b>ASP.NET Core dev port</b> — a random free port in the 5000–5300 range, baked into <code>launchSettings.json</code> so two Shift projects on the same machine don't fight for port 5069.</li>
+        <li><b>Azure Functions dev port</b> — a random free port in the 7000–7300 range, used the same way for the optional Functions project.</li>
+        <li><b>Project GUIDs</b> — every project (API, Data, Shared, Web) gets a fresh <code>ProjectGuid</code> so two scaffolded solutions don't collide if you ever combine them in a parent solution.</li>
+    </ul>
+</DocSection>
+
+<DocSection Title="Common combinations">
+    <h3>First-time learner (recommended)</h3>
+    <p>Get a fully working sample with internal identity, no extras:</p>
+    <DocSnippet Name="ScaffoldFirstProject" Language="bash" />
+
+    <h3>Production-ready starting point with tests and background jobs</h3>
+    <p>The same as above, plus the test project and Functions project:</p>
+    <pre><code class="language-bash">dotnet new shift -n MyApp \
+    --includeSampleApp true \
+    --shiftIdentityHostingType Internal \
+    --addFunctions true \
+    --addTest true</code></pre>
+
+    <h3>Empty skeleton, no sample, external identity</h3>
+    <p>For when you already understand the framework and have a central identity service:</p>
+    <pre><code class="language-bash">dotnet new shift -n MyApp \
+    --includeSampleApp false \
+    --shiftIdentityHostingType External \
+    --externalShiftIdentityApi https://identity.example.com \
+    --externalShiftIdentityFrontEnd https://identity.example.com</code></pre>
+</DocSection>
+
+<DocSection Title="What's next">
+    <p>
+        Continue to <MudLink Href="/get-started/project-tour">Project tour</MudLink>
+        to see what each generated project does and how the pieces fit together.
+    </p>
+</DocSection>

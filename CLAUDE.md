@@ -40,11 +40,14 @@ Always check `PLAN.md` before starting work to see current status, decisions, op
 All pages are pure `.razor` (no Markdown). Every doc page should:
 
 1. Declare its route with `@page`.
-2. Include exactly one `<DocPageMeta />` at the top with `Title`, `Section`, `Status`, `Description`, and `Keywords`. This single declaration drives the page header, browser title, status badge, and search index entry — no duplication.
+2. Include exactly one `<DocPageMeta />` at the top with `Title`, `Section`, `Order`, `Status`, `Description`, and `Keywords`. This single declaration drives the page header, browser title, status badge, side nav position, and search index entry — no duplication. **Avoid `<` and `>` inside attribute values** (e.g. don't write `Description="ShiftEntity<T>"`) — the SnippetGen regex will warn but the page will still parse correctly only if the `<DocPageMeta>` tag is otherwise valid. Prefer plain prose ("the ShiftEntity base class") in these fields.
+
+   **`Order`** is a numeric sort key for the side nav within a section. Lower values appear first. Pages without `Order` fall back to alphabetical-by-title at the end of the section. **Convention: use multiples of 10** (10, 20, 30, ...) so future inserts have room. Each section maintains its own number space — Get Started can have 10/20/30 alongside Concepts having 10/20/30, they don't conflict.
 3. Use the helper components for consistent layout:
    - `<DocSection Title="...">` — section heading with auto anchor link.
    - `<DocCallout Type="DocCalloutType.Note|Tip|Warning|Danger">` — colored callout boxes.
-   - `<DocSnippet Name="..." Language="cs" />` — render a named snippet extracted by `Docs.SnippetGen`.
+   - `<DocSnippet Name="..." Language="cs" />` — render a named snippet extracted by `Docs.SnippetGen` from a real source file (preferred for verified, anchored code).
+   - `<DocCodeBlock Language="csharp" Code="@(@"...")" />` — inline code block for **illustrative** code that doesn't come from an anchored source file. Use this for any code sample containing `<`, `>`, or generic type arguments — Razor's parser tries to parse `<` as a tag opener even inside `<pre><code>`, so passing the code as a string parameter is the only reliable way to embed C# generics, comparisons, or HTML markup. For verified, anchored code, prefer `<DocSnippet>` instead.
 
 ### Snippet Markers
 
@@ -95,12 +98,44 @@ We follow a **two-tier verification model** so the docs don't drift from the fra
 **Tier 2 — Anchored commands and code.** Every command, code snippet, and config example shown to readers comes from a real source file in `Docs.Verify/` (or one of the other scanned roots), never typed inline into a `.razor` page. Pages reference snippets via `<DocSnippet Name="..." />`. This makes it structurally impossible for a command in the docs to differ from a command that was actually verified.
 
 **Workflow when verifying a page:**
-1. Walk through the page on a clean machine.
-2. Fix anything that's wrong by editing the **anchored source** (in `Docs.Verify/Scripts/...`), not the doc page.
-3. Bump the page's `Status` to `DocPageStatus.Reviewed` or `Stable`.
-4. Set `TestedAgainst` to the current framework version (the value of `ShiftFrameworkVersion` in `ShiftTemplates/ShiftFrameworkGlobalSettings.props`).
+1. Run the verification script in `Docs.Verify/Scripts/<page>.sh` end-to-end. If the script doesn't exist, write it. If it fails, fix the script — never the doc page directly.
+2. Once the script runs cleanly, bump the page's `Status` to `DocPageStatus.Reviewed` or `Stable`.
+3. Set `TestedAgainst` to the current framework version (the value of `ShiftFrameworkVersion` in `ShiftTemplates/ShiftFrameworkGlobalSettings.props`).
 
-A future Tier 3 will run the anchored scripts in CI on every PR. For now the contract is: scripts in `Docs.Verify/` are manually verified, and the doc only shows what they contain.
+### Authoring verification scripts (Tier 2.5)
+
+A verification script does **two jobs in one file**:
+1. Anchors the user-facing commands the doc shows (via `# snippet:...` markers)
+2. Actually executes those commands end-to-end as a verification harness
+
+Most commands work for both jobs (e.g. `dotnet ef database update` is the same whether the user runs it or the script runs it). But some commands — especially `dotnet run`, which blocks until killed — would freeze the script forever if executed as bash. Park those inside a function that's defined but never called:
+
+```bash
+# This function exists only to anchor commands for the docs.
+# It is never actually called — the verification harness below runs equivalent
+# operations in a background-friendly way.
+docs_only_anchors() {
+    # snippet:RunApi
+    dotnet run --project MyFirstShiftApp.API
+    # endsnippet
+}
+
+# Verification harness: do the same thing, but in a way that lets the script proceed.
+dotnet run --project MyFirstShiftApp.API --no-launch-profile --urls "http://localhost:5079" > /tmp/api.log 2>&1 &
+API_PID=$!
+# ... wait for port, probe, kill ...
+```
+
+SnippetGen extracts the body of the never-called function just fine. The doc page renders the user-facing command. The verification harness runs the script-friendly version. They stay in sync because they live in the same file.
+
+**Other rules for verification scripts:**
+- Use `set -uo pipefail` (NOT `-e`) so trap-based error handling works cleanly.
+- Wrap pause prompts in `if [ -t 0 ]` checks so non-interactive runs (CI, parent shells) don't hang waiting for input.
+- Always have an `EXIT` trap that cleans up any background processes and any state created (databases, scratch folders, etc).
+- For database verification, use a unique DB name per run (`DB_NAME="MyFirstShiftAppVerify_$(date +%s)"`) and drop it on exit so reruns are reproducible.
+- Override config via environment variables (`ConnectionStrings__SQLServer=...`, `ASPNETCORE_ENVIRONMENT=Development`) rather than editing the scaffolded files — keeps the user's natural flow uncontaminated.
+
+A future Tier 3 will run these scripts in CI on every PR. For now the contract is: scripts in `Docs.Verify/` are manually verified by Claude before a page is marked Reviewed, and the doc only shows what they contain.
 
 ### Page Status
 

@@ -1,0 +1,150 @@
+@page "/get-started/project-tour"
+
+<DocPageMeta Title="Project tour"
+             Section="Get Started"
+             Order="40"
+             Status="DocPageStatus.Draft"
+             Description="What each project in a generated Shift Framework solution does, and how the pieces fit together."
+             Keywords="project,structure,architecture,api,data,shared,web,functions,test,layers" />
+
+<DocSection Title="Solution layout">
+    <p>
+        A Shift Framework project generated with default options is a four-project
+        solution. Each project has a single, clear responsibility and depends only
+        on the projects below it in the stack:
+    </p>
+    <pre><code>YourApp.Web      ← Blazor WebAssembly frontend
+    │
+YourApp.API      ← ASP.NET Core API host (also serves the Blazor bundle in dev)
+    │
+YourApp.Data     ← EF Core entities, repositories, mappers, migrations
+    │
+YourApp.Shared   ← DTOs, enums, action trees (shared between API and Web)</code></pre>
+
+    <p>
+        The dependency arrows always point downward — <b>Web</b> can reference
+        <b>Shared</b>, but <b>Shared</b> cannot reference <b>Web</b>. This is what
+        keeps the API and the frontend able to share types without creating circular
+        builds. If you opted into <code>--addFunctions</code> or <code>--addTest</code>,
+        you'll also see <code>YourApp.Functions</code> and <code>YourApp.Test</code>
+        sitting alongside the API.
+    </p>
+</DocSection>
+
+<DocSection Title="YourApp.Shared">
+    <p>
+        The smallest and most foundational project. Contains everything that needs
+        to be visible to <b>both</b> the server and the Blazor client:
+    </p>
+    <ul>
+        <li><b>DTOs</b> — the View / List / Upsert triad for each entity. These are the shapes that travel over the wire between the API and the frontend.</li>
+        <li><b>Enums</b> — domain enums that show up in DTOs (e.g. <code>OrderStatus</code>, <code>PaymentMethod</code>).</li>
+        <li><b>Action trees</b> — TypeAuth permission definitions. The same tree drives <code>[Authorize]</code> attributes on the API and conditional rendering on the Blazor frontend, so a permission added in one place automatically applies in the other.</li>
+    </ul>
+
+    <DocCallout Type="DocCalloutType.Note">
+        <b>Shared has no behavior.</b> No services, no business logic, no database access.
+        It's a contract project — pure data shapes. Treat it that way and your
+        layering stays clean.
+    </DocCallout>
+</DocSection>
+
+<DocSection Title="YourApp.Data">
+    <p>
+        The persistence layer. Everything that touches Entity Framework Core lives here:
+    </p>
+    <ul>
+        <li><b>Entities</b> — the EF Core entity classes. Each one inherits from <code>ShiftEntity&lt;T&gt;</code>, which gives it ID, soft-delete, audit fields, and the ReloadAfterSave hook for free.</li>
+        <li><b>DbContext</b> — your <code>YourAppDbContext</code> registering all entities. Inherits from a Shift base class that wires up multi-tenancy, audit, and conventions.</li>
+        <li><b>Repositories</b> — one per entity, inheriting <code>ShiftRepository&lt;T, TListDTO, TViewDTO&gt;</code>. The repository is where business rules and authorization checks live, not in the controller.</li>
+        <li><b>Mappers</b> — translate between entities and DTOs. Multiple mapping strategies are supported (AutoMapper, Manual, Mapperly, Mapster) and can be swapped via <code>appsettings.json</code> with no code changes.</li>
+        <li><b>Migrations</b> — EF Core migration files. Run <code>dotnet ef database update</code> from this project's directory.</li>
+        <li><b>AutoMapperProfiles</b> — mapping profiles for the AutoMapper strategy (the default).</li>
+        <li><b>ReplicationModels</b> — projections used by the optional Cosmos DB replication feature.</li>
+    </ul>
+</DocSection>
+
+<DocSection Title="YourApp.API">
+    <p>
+        The ASP.NET Core host. This is what you actually run during development —
+        it serves the API endpoints <b>and</b> hosts the Blazor WebAssembly bundle
+        from <code>YourApp.Web</code>, so a single <code>dotnet run --project YourApp.API</code>
+        gives you the full app.
+    </p>
+    <ul>
+        <li><b>Program.cs</b> — composition root. Wires up DI, mapping strategy, ShiftIdentity, TypeAuth, OData, Azure Storage, and the Blazor middleware. This is where you configure the app, not in scattered config files.</li>
+        <li><b>Controllers</b> — thin REST/OData controllers, one per entity. They typically just delegate to the matching repository in <code>YourApp.Data</code>. Business logic does <b>not</b> belong here.</li>
+        <li><b>Services</b> — supporting services like <code>SendEmailService</code>. Anything that doesn't fit a repository pattern.</li>
+        <li><b>Reports</b> — FastReport (.frx) report templates and the controller endpoints that render them.</li>
+        <li><b>appsettings.json</b> / <b>appsettings.Development.json</b> — connection strings, Azure Storage credentials, identity configuration, mapping strategy toggle.</li>
+    </ul>
+
+    <DocCallout Type="DocCalloutType.Tip">
+        Always run <b>YourApp.API</b> for local development, not <code>YourApp.Web</code>
+        directly. The API project is the host that includes the Blazor dev server
+        and the backing endpoints the frontend calls.
+    </DocCallout>
+</DocSection>
+
+<DocSection Title="YourApp.Web">
+    <p>
+        The Blazor WebAssembly frontend. This is what users see in their browser
+        once <code>YourApp.API</code> serves it.
+    </p>
+    <ul>
+        <li><b>Pages</b> — Blazor pages, one per route. List pages, form pages, dashboard pages — anything users navigate to.</li>
+        <li><b>Components</b> — reusable Blazor components specific to your app (as opposed to the framework-provided ShiftBlazor components).</li>
+        <li><b>Shared</b> — layout components (<code>MainLayout</code>, <code>NavMenu</code>) and other components shared across pages.</li>
+        <li><b>Program.cs</b> — Blazor WASM composition root. Registers <code>HttpClient</code>, ShiftBlazor, MudBlazor, and any client-only services.</li>
+        <li><b>wwwroot</b> — static assets: CSS, images, the <code>index.html</code> shell, and the published WASM bundle.</li>
+    </ul>
+
+    <p>
+        The frontend never talks to the database directly. Every interaction goes
+        through the API, which means the same business rules and authorization
+        enforced server-side automatically apply to the UI.
+    </p>
+</DocSection>
+
+<DocSection Title="Optional projects">
+    <h3>YourApp.Functions <small>(only if you passed <code>--addFunctions true</code>)</small></h3>
+    <p>
+        An Azure Functions project for code that doesn't fit the request/response
+        pattern: timer triggers (scheduled jobs), queue/blob handlers, integration
+        webhooks. Pre-wired with TypeAuth so the same permission checks you use in
+        the API also work inside Functions.
+    </p>
+
+    <h3>YourApp.Test <small>(only if you passed <code>--addTest true</code>)</small></h3>
+    <p>
+        An xUnit integration test project that spins up a real in-memory database
+        and exercises your repositories and controllers end-to-end. Comes with
+        helpers for seeding test data and asserting against the OData query pipeline.
+    </p>
+</DocSection>
+
+<DocSection Title="The flow of a single request">
+    <p>
+        To make the layering concrete, here's what happens when a user clicks
+        "Save" on a product form in the generated sample:
+    </p>
+    <ol>
+        <li>Blazor page in <b>Web</b> serializes the <code>ProductDTO</code> (defined in <b>Shared</b>) and POSTs it to the API.</li>
+        <li>A controller in <b>API</b> receives the DTO, runs the TypeAuth permission check (using the action tree from <b>Shared</b>), and hands the DTO to <code>ProductRepository</code>.</li>
+        <li><code>ProductRepository</code> in <b>Data</b> uses its mapper to translate the DTO into a <code>Product</code> entity, applies business rules, and saves via the DbContext.</li>
+        <li>The repository returns the saved entity mapped back into a <code>ProductDTO</code> (the View shape), which the controller returns as JSON.</li>
+        <li>Blazor receives the response, updates its state, and shows a success message.</li>
+    </ol>
+    <p>
+        Notice that the controller is essentially a glue layer. The repository owns
+        the business logic and the DTO contract is the only thing that crosses
+        layer boundaries. This is the rhythm you'll repeat for every entity.
+    </p>
+</DocSection>
+
+<DocSection Title="What's next">
+    <p>
+        Continue to <MudLink Href="/get-started/run-the-sample">Run the generated sample</MudLink>
+        to bring up the app end-to-end with a real database.
+    </p>
+</DocSection>

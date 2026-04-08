@@ -1,0 +1,148 @@
+@page "/get-started/run-the-sample"
+
+<DocPageMeta Title="Run the generated sample"
+             Section="Get Started"
+             Order="50"
+             Status="DocPageStatus.Draft"
+             Description="Bring the scaffolded app up end-to-end with a database, migrations, and a running API."
+             Keywords="run,migrations,localdb,sql server,connection string,first run,seed,dotnet ef" />
+
+<DocSection Title="Before you start">
+    <p>This page assumes you've already:</p>
+    <ul>
+        <li>Installed the prerequisites and template — <MudLink Href="/get-started/installation">Installation</MudLink>.</li>
+        <li>Scaffolded a project with <code>dotnet new shift</code> — <MudLink Href="/get-started/template-parameters">Template parameters</MudLink>.</li>
+        <li>Have a SQL Server instance running locally. <b>LocalDB</b> (ships with Visual Studio / SQL Server Express LocalDB) is the easiest option for development.</li>
+    </ul>
+</DocSection>
+
+<DocSection Title="Step 1: Configure the connection string">
+    <p>
+        Open <code>YourApp.API/appsettings.Development.json</code>. The template ships
+        with a connection string pointing at <code>localhost\sqlexpress</code> — that
+        won't exist on most machines. Change both <code>SQLServer</code> and
+        <code>LiveIdentitySQLServer</code> to point at whatever SQL Server you actually
+        have running.
+    </p>
+
+    <p>For LocalDB, the connection string looks like this:</p>
+    <pre><code class="language-json">"ConnectionStrings": {
+  "SQLServer": "Server=(localdb)\\MSSQLLocalDB;Database=MyFirstShiftApp;Integrated Security=True;TrustServerCertificate=True;",
+  "LiveIdentitySQLServer": "Server=(localdb)\\MSSQLLocalDB;Database=MyFirstShiftApp;Integrated Security=True;TrustServerCertificate=True;"
+}</code></pre>
+
+    <DocCallout Type="DocCalloutType.Note">
+        Both connection strings can point at the same database for development. In
+        production, <code>LiveIdentitySQLServer</code> typically points at a separate
+        identity database — but you can ignore that distinction until you actually
+        need it.
+    </DocCallout>
+</DocSection>
+
+<DocSection Title="Step 2: Create the initial migration">
+    <p>
+        The template ships with an empty <code>Migrations</code> folder by design.
+        Your first job is to create an initial migration that captures the entire
+        schema (your entities plus all the framework's identity tables) so EF Core
+        has something to apply.
+    </p>
+
+    <p>From your project's root directory:</p>
+    <DocSnippet Name="CreateInitialMigration" Language="bash" />
+
+    <p>
+        The <code>--context DB</code> flag is required because the project defines
+        more than one <code>DbContext</code> (the app's main <code>DB</code> context
+        and a separate one used only by Cosmos replication). Without specifying which
+        one, the EF tools will refuse to proceed.
+    </p>
+
+    <DocCallout Type="DocCalloutType.Tip">
+        If you ever modify your entities later (add a property, add an entity, change
+        a relationship), repeat this step with a different migration name —
+        <code>dotnet ef migrations add AddProductCategoryColor --context DB ...</code> — and
+        then re-run Step 3 below.
+    </DocCallout>
+</DocSection>
+
+<DocSection Title="Step 3: Apply migrations">
+    <p>This creates the database (if it doesn't exist) and applies every pending migration:</p>
+    <DocSnippet Name="ApplyMigrations" Language="bash" />
+
+    <p>You should see EF executing CREATE TABLE statements for the framework's identity tables and your own entities.</p>
+</DocSection>
+
+<DocSection Title="Step 4: Run the API">
+    <p>
+        Always run the <b>API</b> project — it hosts the Blazor WebAssembly bundle
+        from <code>YourApp.Web</code> as well as the backing endpoints, so a single
+        command brings up the whole app:
+    </p>
+    <DocSnippet Name="RunApi" Language="bash" />
+
+    <p>On first run, the API does several things in order:</p>
+    <ol>
+        <li>Connects to the database you configured in Step 1.</li>
+        <li>Verifies migrations are up to date.</li>
+        <li>Runs the seed routine — creates a default country (<code>IQ</code>), region (<code>KRG</code>), company (<code>SFT</code>), and an initial admin user.</li>
+        <li>Starts listening on the port from <code>launchSettings.json</code> (typically 5069 in development, varies per scaffold).</li>
+    </ol>
+</DocSection>
+
+<DocSection Title="Step 5: Open the app">
+    <p>
+        Look at the console output for a line like <code>Now listening on: http://localhost:5069</code> —
+        that's the URL to open in your browser. The Blazor WebAssembly bundle loads from there.
+    </p>
+
+    <p>The default admin credentials seeded by the template are:</p>
+    <ul>
+        <li><b>Username:</b> <code>SuperUser</code></li>
+        <li><b>Password:</b> <code>OneTwo</code></li>
+    </ul>
+
+    <DocCallout Type="DocCalloutType.Warning">
+        These credentials exist for first-run convenience and are <b>not safe</b> for
+        any environment that anyone else can reach. Change the password immediately
+        in non-trivial development setups, and never use these defaults in production.
+    </DocCallout>
+</DocSection>
+
+<DocSection Title="Common errors on first run">
+    <h3>Login failed for user, or Cannot open database</h3>
+    <p>
+        Your connection string in Step 1 is wrong, or the SQL instance isn't running.
+        Double-check that the server name matches exactly what your SQL setup uses.
+        For LocalDB, run <code>sqllocaldb info</code> in a terminal to confirm the
+        instance name.
+    </p>
+
+    <h3>More than one DbContext was found</h3>
+    <p>
+        You forgot the <code>--context DB</code> flag in Step 2 or Step 3. The EF
+        tools can't guess which context you mean when there are multiple registered.
+    </p>
+
+    <h3>Invalid object name 'ShiftIdentity.Countries'</h3>
+    <p>
+        You skipped Step 2 (creating the initial migration). The schema is empty so
+        the seed code can't find the identity tables it expects. Run
+        <code>dotnet ef migrations add InitialCreate --context DB ...</code> and try again.
+    </p>
+
+    <h3>Token public key cannot be null</h3>
+    <p>
+        The API was started without the <code>Development</code> environment, so
+        <code>appsettings.Development.json</code> never loaded. Make sure
+        <code>ASPNETCORE_ENVIRONMENT=Development</code> is set, or run via Visual
+        Studio / <code>dotnet run</code> from the project directory (both load the
+        Development profile by default).
+    </p>
+</DocSection>
+
+<DocSection Title="What's next">
+    <p>
+        With a working sample running, the natural next step is to add your own
+        first entity end-to-end: <MudLink Href="/get-started/your-first-entity">Your first entity</MudLink>.
+    </p>
+</DocSection>

@@ -48,6 +48,13 @@
     [Parameter] public string? Description { get; set; }
     [Parameter] public string? Keywords { get; set; }
     [Parameter] public string? TestedAgainst { get; set; }
+    /// <summary>
+    /// Numeric sort order within the page's section in the side nav.
+    /// Lower values appear first. Pages without an Order fall back to
+    /// alphabetical-by-title at the end. Conventionally use multiples of 10
+    /// (10, 20, 30, ...) so future inserts have room.
+    /// </summary>
+    [Parameter] public int Order { get; set; } = int.MaxValue;
 
     private Color StatusColor => Status switch
     {

@@ -9,7 +9,8 @@ public record SearchEntry(
     string? Section,
     string Status,
     string? Description,
-    string? Keywords);
+    string? Keywords,
+    int Order = int.MaxValue);
 
 public record SearchHit(SearchEntry Entry, int Score);
 
@@ -69,9 +70,16 @@ public class SearchService
         await EnsureLoadedAsync();
         if (_index is null) return Array.Empty<(string, IReadOnlyList<SearchEntry>)>();
 
+        // Sort by explicit Order first (lower values appear earlier), then by
+        // title alphabetically as a tie-breaker for pages without an Order set.
         var grouped = _index
             .GroupBy(e => string.IsNullOrWhiteSpace(e.Section) ? "Other" : e.Section!)
-            .ToDictionary(g => g.Key, g => (IReadOnlyList<SearchEntry>)g.OrderBy(e => e.Title).ToList());
+            .ToDictionary(
+                g => g.Key,
+                g => (IReadOnlyList<SearchEntry>)g
+                    .OrderBy(e => e.Order)
+                    .ThenBy(e => e.Title)
+                    .ToList());
 
         var ordered = new List<(string, IReadOnlyList<SearchEntry>)>();
         if (sectionOrder is not null)

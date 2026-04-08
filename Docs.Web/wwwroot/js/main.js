@@ -1,16 +1,9 @@
-﻿window.downloadTextFile = (filename, content) => {
-    try {
-        const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-    } catch (err) {
-        console.error("Download failed:", err);
-        throw err;
+// Toggles which Prism theme stylesheet is active. Called from Blazor whenever
+// the dark mode state changes. The dark stylesheet has id="prism-dark" in
+// index.html and starts disabled — this function flips its `disabled` flag.
+window.setPrismDarkTheme = (isDark) => {
+    const darkSheet = document.getElementById("prism-dark");
+    if (darkSheet) {
+        darkSheet.disabled = !isDark;
     }
 };

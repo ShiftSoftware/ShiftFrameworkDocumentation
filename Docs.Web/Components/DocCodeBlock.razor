@@ -1,0 +1,38 @@
+@*
+    DocCodeBlock — inline code block for Concepts and Guides pages where the
+    code is illustrative (not from an anchored snippet file).
+
+    Why this exists: Razor tries to parse `<` as a tag opener even inside
+    <pre><code> blocks, so any C# sample with generics (List<Foo>), comparisons
+    (x < 0), or HTML markup breaks the page with cryptic Razor errors. This
+    helper takes the code as a string parameter — Razor sees it as data, not
+    markup, so the < characters survive untouched.
+
+    The output DOM matches what CodeViewer produces (a <pre class="line-numbers">
+    with a <code class="language-X"> inside) so the Prism syntax-highlighting
+    theme loaded globally also styles these blocks. We trigger Prism
+    highlighting after render via JS interop — without this, the code renders
+    as un-highlighted text and the dark theme's text colors leave it
+    invisible-on-white.
+
+    For verified, anchored code that comes from a real source file, use
+    <DocSnippet Name="..." /> instead.
+*@
+
+@inject IJSRuntime JS
+
+<pre class="line-numbers"><code class="language-@Language">@Code</code></pre>
+
+@code {
+    [Parameter, EditorRequired] public string Code { get; set; } = default!;
+    [Parameter] public string Language { get; set; } = "csharp";
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        // Re-run Prism on every render so navigation between pages picks up
+        // newly-mounted code blocks. Prism's toolbar plugin attaches the
+        // native Copy button automatically as part of highlighting. Cheap to
+        // call repeatedly.
+        await JS.InvokeVoidAsync("Prism.highlightAll");
+    }
+}

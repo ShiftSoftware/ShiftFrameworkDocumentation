@@ -11,8 +11,19 @@
     <link href="_content/ShiftSoftware.ShiftBlazor/main.css" rel="stylesheet" />
     <link href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap" rel="stylesheet" />
     <link href="_content/MudBlazor/MudBlazor.min.css" rel="stylesheet" />
-    <link href="libraries/prism.css" rel="stylesheet" />
+    <!--
+        Two Prism themes load. Light is the default; dark is disabled at startup
+        and turned on by js/main.js when the user toggles dark mode (or the
+        system preference is dark). The dark stylesheet has id="prism-dark" so
+        the toggle script can find and enable/disable it.
+    -->
+    <link href="libraries/prism-light.css" rel="stylesheet" />
+    <link id="prism-dark" href="libraries/prism.css" rel="stylesheet" disabled />
+    <link href="libraries/prism-toolbar.css" rel="stylesheet" />
+    <link href="libraries/prism-toolbar-icons.css" rel="stylesheet" />
     <script src="libraries/prism.js"></script>
+    <script src="libraries/prism-toolbar.js"></script>
+    <script src="libraries/prism-copy-to-clipboard.js"></script>
     <script src="js/main.js"></script>
 </head>
 
