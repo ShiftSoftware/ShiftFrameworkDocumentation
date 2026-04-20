@@ -28,12 +28,14 @@ dotnet run --project Docs.API
 
 ## Active Plan
 
-**Single source of truth for ongoing documentation work:** [`PLAN.md`](PLAN.md)
+**Single source of truth for ongoing documentation work:** `.shift/repos/shift-framework-documentation/PLAN.md` (in the `.shift` repo).
 
-Always check `PLAN.md` before starting work to see current status, decisions, open questions, and known issues. Update it whenever:
+Always check the plan before starting work to see current status, decisions, open questions, and known issues. Update it whenever:
 - A workstream item is completed.
 - A decision is made on an open question.
 - Scope changes.
+
+The plan lives in `.shift` (centralized across repos) rather than in this repo. See `.shift/CLAUDE.md` for how the cross-repo knowledge base is organized.
 
 ## Authoring Documentation Pages
 
