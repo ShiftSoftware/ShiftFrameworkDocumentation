@@ -22,7 +22,15 @@
 		<ProjectReference Include="..\..\ShiftBlazor\ShiftBlazor\ShiftBlazor.csproj" Condition="Exists('..\..\ShiftBlazor\ShiftBlazor\ShiftBlazor.csproj')" />
 	</ItemGroup>
 
-	<Target Name="RunSnippetGenerator" BeforeTargets="Build">
+	<!--
+	  Docs build hooks are gated by RunDocsBuildHooks (set to false in
+	  ShiftTemplates\ShiftFrameworkGlobalSettings.props, imported above) because they
+	  rewrite wwwroot files on every run and defeat incremental builds of the whole
+	  StockPlusPlus.sln. Flip the flag there (or pass -p:RunDocsBuildHooks=true) when
+	  working on the docs site. Standalone clones without that props file are
+	  unaffected — the targets only skip on the explicit value 'false'.
+	-->
+	<Target Name="RunSnippetGenerator" BeforeTargets="Build" Condition="'$(RunDocsBuildHooks)' != 'false'">
 		<Exec Command="dotnet run --project ..\Docs.SnippetGen\Docs.SnippetGen.csproj" />
 	</Target>
 
@@ -34,7 +42,7 @@
 	  package's lib/{tfm}/ folder and land in the build output automatically — we just
 	  need to surface them as static web assets.
 	-->
-	<Target Name="CopyShiftFrameworkXmlDocs" AfterTargets="Build">
+	<Target Name="CopyShiftFrameworkXmlDocs" AfterTargets="Build" Condition="'$(RunDocsBuildHooks)' != 'false'">
 		<ItemGroup>
 			<ShiftXmlDocs Include="$(OutDir)ShiftSoftware.ShiftBlazor*.xml" />
 			<ShiftXmlDocs Include="$(OutDir)ShiftSoftware.ShiftEntity*.xml" />

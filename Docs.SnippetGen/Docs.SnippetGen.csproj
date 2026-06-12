@@ -1,4 +1,5 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
+  <Import Project="..\..\ShiftTemplates\ShiftFrameworkGlobalSettings.props" Condition="Exists('..\..\ShiftTemplates\ShiftFrameworkGlobalSettings.props')" />
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
@@ -7,8 +8,12 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
-  <Target Name="RunSelfAfterBuild" AfterTargets="Build">
-    <Exec Command="dotnet &quot;$(TargetPath)&quot;" /> 
+  <!-- Gated by RunDocsBuildHooks (see ShiftTemplates\ShiftFrameworkGlobalSettings.props):
+       running the generator on every build rewrites Docs.Web/wwwroot files and defeats
+       incremental builds across StockPlusPlus.sln. Only skips on the explicit value
+       'false', so standalone clones without the props file keep the current behavior. -->
+  <Target Name="RunSelfAfterBuild" AfterTargets="Build" Condition="'$(RunDocsBuildHooks)' != 'false'">
+    <Exec Command="dotnet &quot;$(TargetPath)&quot;" />
   </Target>
 	
 </Project>

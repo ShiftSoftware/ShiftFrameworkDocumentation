@@ -16,7 +16,7 @@ The audience is **new developers from external organizations** who have never se
 | `Docs.API` | ASP.NET Core host that serves the Blazor WASM bundle and provides backing API endpoints for live component demos. **This is what you run for local development.** |
 | `Docs.Data` | EF Core DbContext + entities + repositories for the demo data behind `Docs.API`. |
 | `Docs.Shared` | DTOs and types shared between `Docs.API` and `Docs.Web`. |
-| `Docs.SnippetGen` | Build-time tool that scans source files for snippet regions, copies Razor demo files into `Docs.Web/wwwroot/snippets/`, and generates `wwwroot/search-index.json` from `<DocPageMeta />` declarations. Runs automatically as a `BeforeTargets="Build"` step on `Docs.Web`. |
+| `Docs.SnippetGen` | Build-time tool that scans source files for snippet regions, copies Razor demo files into `Docs.Web/wwwroot/snippets/`, and generates `wwwroot/search-index.json` from `<DocPageMeta />` declarations. Runs automatically as a `BeforeTargets="Build"` step on `Docs.Web` — **but is currently disabled in framework development mode**: `ShiftTemplates\ShiftFrameworkGlobalSettings.props` sets `RunDocsBuildHooks=false` because the generator rewrites `wwwroot` files on every build, which defeated incremental builds across `StockPlusPlus.sln`. **When working on the docs site, set `RunDocsBuildHooks` to `true` in that props file** (or build with `-p:RunDocsBuildHooks=true`), otherwise snippets and the search index will be stale. Standalone clones without ShiftTemplates are unaffected. |
 
 ## Running Locally
 
