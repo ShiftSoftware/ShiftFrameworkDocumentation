@@ -70,7 +70,7 @@ public class ProductController : ShiftEntitySecureControllerAsync<
     <ol>
         <li><b>Auth check.</b> The controller's <code>Post</code> action calls <code>typeAuthService.CanWrite(action)</code> using the permission node from its constructor. If the current user can't write, it returns <code>403 Forbidden</code> immediately.</li>
         <li><b>UpsertAsync.</b> The controller delegates to the repository's <code>UpsertAsync</code>, passing a fresh empty entity, the incoming DTO, and the action type (<code>Insert</code> for POST, <code>Update</code> for PUT).</li>
-        <li><b>MapToEntity.</b> Inside <code>UpsertAsync</code>, the repository's mapper translates the DTO into an entity instance. For inserts the entity is empty; for updates the existing entity is loaded first and the DTO fields are merged into it.</li>
+        <li><b>MapToEntity.</b> Inside <code>UpsertAsync</code>, the repository's mapper merges the DTO into the entity the repository handed it and returns it. For inserts that entity is empty; for updates the existing row is loaded first and the DTO fields are merged into it. (The repository resolved that mapper once, in its constructor.)</li>
         <li><b>Audit fields.</b> The repository calls <code>SetAuditFields</code>, populating <code>CreateDate</code>, <code>LastSaveDate</code>, <code>CreatedByUserID</code>, and <code>LastSavedByUserID</code> from the current user and current timestamp. You never write this code yourself.</li>
         <li><b>BeforeSave hook (if defined).</b> If your repository implements <code>IShiftEntityHasBeforeSaveHook&lt;T&gt;</code>, the framework calls your <code>BeforeSaveAsync(entity, actionType)</code> method here. This is where you put validation that needs to run with the about-to-be-saved entity in hand (e.g. cross-field rules, derived calculations).</li>
         <li><b>SaveChangesAsync.</b> The framework calls <code>db.SaveChangesAsync()</code>. EF Core issues the actual SQL <code>INSERT</code> or <code>UPDATE</code>.</li>
@@ -181,7 +181,9 @@ public class ProductController : ShiftEntitySecureControllerAsync<
         The next page covers the
         <MudLink Href="/concepts/mapping-abstraction">mapping abstraction</MudLink> —
         how the repository translates between entities and DTOs, what
-        <code>IShiftEntityMapper</code> is, and how to choose between AutoMapper,
-        Manual, Mapperly, and Mapster mapping strategies.
+        <code>IShiftEntityMapper</code> is, and the four ways to supply one — a
+        source-generated mapper with no code at all, a generated mapper with
+        fluent build-time configuration, a <code>[ShiftEntityMapper]</code>
+        partial class, or a hand-written mapper.
     </p>
 </DocSection>

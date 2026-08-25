@@ -1,213 +1,519 @@
 @page "/concepts/mapping-abstraction"
 
-<DocPageMeta Title="The mapping abstraction"
+<DocPageMeta Title="Mapping entities to DTOs"
              Section="Concepts"
              Order="40"
              Status="DocPageStatus.Draft"
-             Description="How the repository translates between entities and DTOs, what IShiftEntityMapper is, and how to choose between AutoMapper, Manual, Mapperly, and Mapster mapping strategies."
-             Keywords="mapping,mapper,ishiftentitymapper,automapper,manual,mapperly,mapster,strategy,dto,entity" />
+             Description="How the repository translates between entities and DTOs, what IShiftEntityMapper is, the four ways to supply a mapper, and what the build-time SHENGEN diagnostics catch."
+             Keywords="mapping,mapper,ishiftentitymapper,source generator,shengen,usegeneratedmapper,shiftentitymapper,maptoview,maptolist,maptoentity,copyentity,dto,entity" />
 
 <DocSection Title="Why a mapping abstraction">
     <p>
-        Repositories spend most of their time translating between two shapes:
-        the <b>entity</b> (what the database stores) and the <b>DTO</b> (what
-        crosses the wire). For a long time, Shift Framework hard-coded
-        AutoMapper as the way to do that translation. That created two problems:
+        A repository spends most of its life translating between two shapes: the
+        <b>entity</b> (the row the database stores) and the <b>DTO</b> (the shape
+        that crosses the wire). The framework routes all of that through a single
+        interface — <code>IShiftEntityMapper&lt;TEntity, TListDTO, TViewDTO&gt;</code> —
+        so <code>ShiftRepository</code> has exactly one mapping path, no matter
+        where the mapping itself comes from.
     </p>
-    <ul>
-        <li>
-            <b>Implicit flattening risk.</b> AutoMapper silently maps
-            <code>Vehicle.VIN</code> into <code>VehicleVIN</code> via naming
-            convention, which can leak data unintentionally. There's no compile-time
-            check that the mapping you got is the mapping you wanted.
-        </li>
-        <li>
-            <b>Runtime errors.</b> Mapping bugs surface at runtime when the
-            mapper actually runs, not at build time when you'd prefer to catch them.
-            Forgetting to register a profile typically blows up on the first request
-            against the affected endpoint.
-        </li>
-    </ul>
 
     <p>
-        The solution: introduce <code>IShiftEntityMapper</code> as the single
-        mapping abstraction that the repository talks to. AutoMapper becomes
-        one possible implementation rather than the only one. Consumers can
-        choose between AutoMapper, hand-written manual mappers, source-generated
-        Mapperly mappers, or Mapster — picking whatever trade-off fits the
-        project — and the repository code stays identical.
+        One paragraph of history, because older projects and older code comments
+        still mention it: AutoMapper was the original implementation, and it has
+        been <b>removed from the framework</b>. ShiftEntity, ShiftIdentity and the
+        project templates carry no AutoMapper package reference, no AutoMapper
+        profile, no <code>AddAutoMapper</code> call and no mapping-mode switch.
+        (Consumer applications that have not migrated yet still use AutoMapper in
+        their own code — this is a statement about the framework packages, not
+        about every codebase that depends on them.) The reason for the change was
+        that convention mapping decided at runtime only reported its mistakes at
+        runtime, on whichever endpoint a user happened to open first. What replaced
+        it decides the same conventions at <b>build time</b>, in a source generator,
+        and adds one startup check that no entity/DTO triple is left uncovered.
     </p>
 </DocSection>
 
 <DocSection Title="The interface">
-    <p>The contract is four methods:</p>
+    <p>The contract is four methods, plus a non-generic marker:</p>
 
-    <DocCodeBlock Code="@(@"public interface IShiftEntityMapper<TEntity, TListDTO, TViewDTO>
+    <DocCodeBlock Code="@(@"// Non-generic marker: lets a generic parameter be constrained to ""a ShiftEntity mapper""
+// without naming the triple (e.g. TMapper on [ShiftEntityEndpointWithMapper<..., TMapper>]).
+public interface IShiftEntityMapper { }
+
+public interface IShiftEntityMapper<TEntity, TListDTO, TViewDTO> : IShiftEntityMapper
 {
-    TViewDTO MapToView(TEntity entity);
-    TEntity MapToEntity(TViewDTO dto, TEntity existing);
-    IQueryable<TListDTO> MapToList(IQueryable<TEntity> query);
-    void CopyEntity(TEntity source, TEntity target);
+    TViewDTO MapToView(TEntity entity, MappingContext context = default);
+    TEntity MapToEntity(TViewDTO dto, TEntity existing, MappingContext context = default);
+    IQueryable<TListDTO> MapToList(IQueryable<TEntity> query, MappingContext context = default);
+    void CopyEntity(TEntity source, TEntity target, MappingContext context = default);
 }")" />
 
     <ul>
-        <li><code>MapToView</code> — translate a single entity into its View+Upsert DTO. Used after a save and on get-by-id endpoints.</li>
-        <li><code>MapToEntity</code> — merge an incoming DTO into an existing tracked entity. The repository hands you the entity (empty for inserts, loaded for updates) and you populate its fields from the DTO.</li>
-        <li><code>MapToList</code> — project an <code>IQueryable&lt;TEntity&gt;</code> into an <code>IQueryable&lt;TListDTO&gt;</code>. <b>Crucially still an IQueryable</b>, so EF Core can translate the projection into a SELECT clause and pull only the columns the list DTO needs.</li>
-        <li><code>CopyEntity</code> — entity-to-entity field copy, used by <code>ReloadAfterSave</code> to merge a freshly-loaded entity with navigation properties back onto the tracked instance.</li>
+        <li><code>MapToView</code> — translate a single entity into its View+Upsert DTO. Used on get-by-id and after a save.</li>
+        <li><code>MapToEntity</code> — merge an incoming DTO <b>into</b> an existing tracked entity and return it. The repository hands you the entity (an empty instance for inserts, the loaded row for updates); the method mutates and returns <code>existing</code> rather than building a detached entity.</li>
+        <li><code>MapToList</code> — project an <code>IQueryable&lt;TEntity&gt;</code> into an <code>IQueryable&lt;TListDTO&gt;</code>. It has to stay a translatable member-init expression — no helper calls inside the lambda — so EF Core can turn it into a <code>SELECT</code> and pull only the columns the list DTO needs.</li>
+        <li><code>CopyEntity</code> — entity-to-entity copy, used by the <code>ReloadAfterSave</code> path to merge a freshly-loaded entity (navigation properties included) back onto the tracked instance.</li>
+        <li><code>MappingContext</code> — carries an <code>IServiceProvider</code> (which may be null) and the action being performed when it is known. The repository passes its <code>DbContext</code>'s application service provider, so a mapper that was never registered in DI — one you <code>new</code> inside <code>UseMapper(...)</code> — can still resolve services on demand instead of constructor-injecting them.</li>
     </ul>
 
-    <DocCallout Type="DocCalloutType.Note">
-        <code>MapToList</code> is the only method that has to operate on
-        <code>IQueryable</code> rather than concrete instances. This is what
-        keeps list endpoints efficient — without it, the framework would have
-        to load entire entities into memory and project in C#, defeating
-        the OData query pipeline.
+    <DocCallout Type="DocCalloutType.Warning" Title="A hand-written MapToList must bind ID and IsDeleted">
+        <p>
+            The Web layer appends <code>.Where(x =&gt; !x.IsDeleted)</code> and
+            rewrites hash-id <code>$filter</code> and <code>$orderby</code> against
+            the <b>already-projected DTO</b> queryable, not against the entity
+            queryable. If your projection never binds those two members, there is
+            nothing for any of that to reach.
+        </p>
+        <p>
+            On EF Core an unbound member does not quietly default — the query fails
+            to translate and the request throws. A missing <code>IsDeleted</code> is
+            a 500 on every list call; a missing <code>ID</code> is a 500 the first
+            time anyone sorts or filters, which is the shape that reaches production,
+            because the grid works until someone clicks a column header. (In
+            LINQ-to-Objects — a unit test over an array — the same omission is
+            silent and returns soft-deleted rows instead.)
+        </p>
+        <p>
+            <code>MappingHelpers.MapBaseListFields</code> cannot help here: it is an
+            in-memory call and no projection can translate it. Bind the two members
+            inline. The source generator binds both automatically — this is a
+            contract for hand-written mappers and repository overrides only.
+        </p>
     </DocCallout>
 </DocSection>
 
-<DocSection Title="The four supported strategies">
+<DocSection Title="One mapper per triple, and how the repository finds it">
     <p>
-        Shift Framework's <code>StockPlusPlus</code> sample ships working
-        mappers for all four strategies, and you can switch between them at
-        runtime via <code>appsettings.json</code>. Each one is a different
-        trade-off between how much boilerplate you write, what gets caught at
-        compile time versus runtime, and how much hidden behavior the framework
-        applies on your behalf.
+        A mapper is keyed by the <b>triple</b>: entity, list DTO, view/upsert DTO.
+        Two endpoints over the same entity with different DTOs are two triples and
+        need two mappers — which is why the sample's mapper-backed Country endpoint
+        has its own <code>CountryMappedDTO</code> rather than reusing
+        <code>CountryDTO</code>.
     </p>
 
-    <h3>1. AutoMapper (the historical default)</h3>
-    <ul>
-        <li><b>Pros:</b> Convention-based mapping. Zero per-field code for entities whose DTOs match by name. Familiar to most .NET developers.</li>
-        <li><b>Cons:</b> The conventions are exactly the problem — silent flattening, runtime-only errors, no compile-time guarantee that a property is mapped. Adds runtime reflection overhead.</li>
-        <li><b>When to pick it:</b> Greenfield projects that can lean fully into the conventions, or existing projects already invested in AutoMapper profiles.</li>
-    </ul>
+    <p>
+        Resolution happens once, in the repository's constructor
+        (<code>InitCommon</code> in <code>ShiftEntity.EFCore/ShiftRepository.cs</code>),
+        in this order:
+    </p>
+    <ol>
+        <li>
+            <b>A mapper configured on the repository options</b> —
+            <code>UseMapper(mapper)</code> or <code>UseGeneratedMapper(...)</code>.
+            That configuration comes either from the builder the repository passes
+            to <code>base(db, o =&gt; ...)</code>, or — when no builder is passed —
+            from the entity's own
+            <code>IConfiguresShiftRepository&lt;E, L, V&gt;.ConfigureRepository</code>.
+            Note that <code>UseMapper(null)</code> also counts as "configured" and
+            wins over everything below.
+        </li>
+        <li>
+            <b>An <code>IShiftEntityMapper&lt;E, L, V&gt;</code> registered in DI.</b>
+            Resolutions that are themselves a <code>ShiftRepository</code> are
+            ignored — a repository implements the interface, and using it as its own
+            mapper would recurse. This is the path a
+            <code>[ShiftEntityEndpointWithMapper&lt;..., TMapper&gt;]</code> attribute
+            uses: <code>RegisterShiftRepositories</code> registers the attribute's
+            mapper for that triple.
+        </li>
+        <li>
+            <b>The source-generated mapper</b> from
+            <code>ShiftEntityMapperRegistry</code>, which the generator populates
+            from a module initializer.
+        </li>
+        <li>
+            <b>Nothing</b> — and then the four mapping methods throw
+            <code>InvalidOperationException("No mapper configured. Override MapToView() or set one via UseMapper().")</code>.
+        </li>
+    </ol>
 
-    <h3>2. Manual</h3>
-    <ul>
-        <li><b>Pros:</b> Full explicit control. No magic. The mapping is just C# code you can step through with a debugger. Completely compile-time safe.</li>
-        <li><b>Cons:</b> Verbose. Every field is typed twice (once on the DTO, once in the mapper). Refactoring an entity means manually updating every mapping site.</li>
-        <li><b>When to pick it:</b> Projects with complex mappings that don't fit conventions (e.g. heavy use of <code>ShiftEntitySelectDTO</code>, <code>ShiftFileDTO</code>, JSON columns, computed values), or teams that strongly prefer "no magic."</li>
-    </ul>
+    <p>
+        There is no convention fallback behind step 4 any more. Sitting above the
+        whole chain is one further option: the four methods are
+        <code>public virtual</code> on <code>ShiftRepository</code>, so overriding
+        <code>MapToView</code> / <code>MapToEntity</code> / <code>MapToList</code> /
+        <code>CopyEntity</code> bypasses the resolved mapper entirely unless the
+        override calls <code>base</code>.
+    </p>
 
-    <h3>3. Mapperly (source-generated)</h3>
-    <ul>
-        <li><b>Pros:</b> A Roslyn source generator emits the mapper at compile time. Zero runtime reflection. Compile-time errors when source and target don't line up. Fast.</li>
-        <li><b>Cons:</b> Adds a source-generator dependency. Some framework-specific patterns (FK conversions, file DTOs, navigation property projections) still need to be hand-written wrappers around the generated scalar mapping. The generated code is bound to the exact field names — renames need a recompile.</li>
-        <li><b>When to pick it:</b> Performance-sensitive projects, or teams that want compile-time mapping safety without writing every field by hand.</li>
-    </ul>
+    <p>
+        The repository has a single constructor, and the mapper choice lives in the
+        options builder it hands to the base:
+    </p>
 
-    <h3>4. Mapster</h3>
-    <ul>
-        <li><b>Pros:</b> Fluent <code>TypeAdapterConfig</code> API. Much more concise than Mapperly's per-field attribute style. Easy migration from AutoMapper because the mental model is similar (convention-based with explicit overrides).</li>
-        <li><b>Cons:</b> Same convention-based flattening risk as AutoMapper, just with a different API. Still requires explicit ignore lists for base class properties and circular navigation references.</li>
-        <li><b>When to pick it:</b> Migrating from AutoMapper but wanting better runtime performance and a more controllable surface.</li>
-    </ul>
+    <DocCodeBlock Code="@(@"public class InvoiceRepository
+    : ShiftRepository<DB, Invoice, InvoiceListDTO, InvoiceDTO>
+{
+    public InvoiceRepository(DB db)
+        : base(db, options => options.UseGeneratedMapper()) { }
+}")" />
 </DocSection>
 
-<DocSection Title="Switching strategies via appsettings">
+<DocSection Title="Four ways to supply a mapper">
     <p>
-        The default <code>shift</code> template registers all four mapping
-        strategies in DI but only activates one of them based on a config
-        setting. To switch, edit
-        <code>YourApp.API/appsettings.json</code>:
+        These are not competing libraries and not a per-project setting. They are
+        four levels of explicitness, chosen <b>per repository, in code</b>. Two
+        repositories in the same project routinely differ — in the
+        <code>StockPlusPlus</code> sample, <code>Product</code> overrides the
+        mapping methods outright while <code>Country</code> uses the generated
+        mapper with no mapping code at all.
     </p>
 
-    <DocCodeBlock Language="json" Code="@(@"{
-    ""MappingStrategy"": ""Manual""
+    <h3>1. Zero code — the source-generated mapper</h3>
+    <p>
+        Call <code>options.UseGeneratedMapper()</code>, or configure nothing at all
+        and let step 3 of the resolution order find it. The generator discovers the
+        triple from your <code>ShiftRepository&lt;DB, E, L, V&gt;</code> subclass or
+        from a <code>[ShiftEntityEndpoint...]</code> attribute; no mapper class is
+        written by hand anywhere.
+    </p>
+    <p>
+        Sample: <code>StockPlusPlus.Data/Repositories/CountryRepository.cs</code>,
+        <code>ProductCategoryRepository</code>.
+    </p>
+
+    <h3>2. Generated, plus fluent configuration baked at build time</h3>
+    <p>
+        <code>options.UseGeneratedMapper(map =&gt; map.ForList(...).IgnoreEntity(...))</code>.
+        The generator <b>statically reads</b> these calls and emits either the
+        customization, the convention, or nothing at all — there is no per-property
+        runtime branch. Registering a member automatically suppresses the generated
+        convention for it.
+    </p>
+    <p>The builder surface (<code>ShiftEntity.Core/ShiftMapperBuilder.cs</code>):</p>
+    <ul>
+        <li><code>ForView</code> / <code>ForEntity</code> (plus an <code>existing</code>-aware overload) / <code>ForList</code> (an <b>expression</b> over the entity, spliced into the single SQL projection) / <code>ForCopy</code>.</li>
+        <li><code>AfterEntity(dto, existing, context)</code> for work that spans several members.</li>
+        <li><code>Ignore</code>, and the per-direction <code>IgnoreView</code> / <code>IgnoreEntity</code> / <code>IgnoreList</code> / <code>IgnoreCopy</code>.</li>
+        <li><code>MaxDepth(n)</code> and <code>CaseSensitive()</code>.</li>
+        <li>The explicit child composers <code>ForViewChild</code> / <code>ForViewChildren</code>, <code>ForEntityChild</code> / <code>ForEntityChildren</code>, <code>ForListChild</code> / <code>ForListChildren</code>, each taking an optional nested <code>configureChild</code>.</li>
+    </ul>
+    <p>
+        Sample: <code>StockPlusPlus.Data/Repositories/InvoiceRepository.cs</code>.
+    </p>
+
+    <h3>3. A <code>[ShiftEntityMapper]</code> partial class</h3>
+
+    <DocCodeBlock Code="@(@"[ShiftEntityMapper]
+public partial class ProductBrandMapper
+    : IShiftEntityMapper<ProductBrand, ProductBrandListDTO, ProductBrandDTO>
+{
+    // Per-property customization. Registering a member suppresses the
+    // generated convention for it; everything else stays generated.
+    partial void Configure(
+        ShiftMapperBuilder<ProductBrand, ProductBrandListDTO, ProductBrandDTO> map)
+    {
+        map.ForList(d => d.Code, entity => entity.Code ?? ""(No Code)"");
+    }
+
+    // Take one method over and still keep every convention: the generated
+    // ...Generated body is the partial-class analogue of base.MapToEntity(...).
+    public ProductBrand MapToEntity(
+        ProductBrandDTO dto, ProductBrand existing, MappingContext context = default)
+    {
+        existing = MapToEntityGenerated(dto, existing, context);
+
+        existing.Code = existing.Code?.Trim();
+
+        return existing;
+    }
 }")" />
 
     <p>
-        Valid values are <code>AutoMapper</code> (default), <code>Manual</code>,
-        <code>Mapperly</code>, and <code>Mapster</code>. The
-        <code>Program.cs</code> composition root reads this setting and
-        registers the matching mapper implementation as
-        <code>IShiftEntityMapper&lt;TEntity, TListDTO, TViewDTO&gt;</code> for
-        each entity. The repository's two-constructor pattern (one accepting
-        <code>IShiftEntityMapper</code>, one falling back to AutoMapper) does
-        the rest — DI picks the explicit mapper when it's registered.
+        The generator fills in whichever of the four methods you did not write,
+        emits the <code>...Generated</code> bodies you can call, and registers
+        <b>this</b> class in the registry instead of an auto-named one. Plug it with
+        <code>options.UseMapper(new ProductBrandMapper())</code>, or let the registry
+        resolution in step 3 find it.
+    </p>
+    <p>
+        When both exist, precedence is: the mapper's own <code>Configure</code> runs
+        first, and the repository's <code>UseGeneratedMapper(configure)</code> runs
+        after it and wins.
+    </p>
+    <p>
+        Sample: <code>StockPlusPlus.Data/Mappers/ProductBrandMapper.cs</code>.
     </p>
 
-    <DocCallout Type="DocCalloutType.Tip">
-        Switching strategies is a runtime decision per project, not a
-        framework-wide one. Two projects in the same organization can use
-        different strategies based on their needs. The framework's
-        <code>ShiftRepository</code> code is identical regardless.
+    <h3>4. Hand-written, or repository overrides</h3>
+    <p>
+        The most explicit option is a plain class implementing
+        <code>IShiftEntityMapper&lt;E, L, V&gt;</code> — sample:
+        <code>StockPlusPlus.Data/Mappers/CountryMapper.cs</code>, plugged in through a
+        <code>[ShiftEntitySecureEndpointWithMapper&lt;CountryMappedDTO, CountryMappedDTO, StockPlusPlusActionTree, CountryMapper&gt;]</code>
+        attribute — or overriding the four virtual methods directly on the
+        repository, as
+        <code>StockPlusPlus.Data/Repositories/ProductRepository.cs</code> does.
+    </p>
+
+    <DocCallout Type="DocCalloutType.Warning" Title="Override CopyEntity too">
+        If you map by hand, remember the fourth method.
+        <code>ShiftRepository.CopyEntity</code> no longer falls back to
+        <code>ShallowCopyTo</code> when no mapper is configured — it throws like the
+        other three. <code>source.ShallowCopyTo(target)</code> is the default body
+        to paste.
     </DocCallout>
 </DocSection>
 
-<DocSection Title="Mapping helpers (for manual and Mapperly)">
+<DocSection Title="What the conventions cover">
     <p>
-        Hand-writing mappers gets tedious fast for entities with audit fields,
-        foreign keys, and file references — these patterns repeat for every
-        mapper you write. <code>ShiftEntity.Core</code> ships a small set of
-        extension method helpers that take the boilerplate away while keeping
-        the mapping itself explicit:
+        Everything below is what the generated mapper does for you before you
+        configure anything.
     </p>
     <ul>
-        <li><code>dto.MapBaseFields(entity)</code> — copies <code>ID</code>, <code>IsDeleted</code>, and the four audit fields from entity to view DTO. Returns the DTO for fluent chaining.</li>
-        <li><code>id.ToSelectDTO(text)</code> — converts a foreign key (<code>long</code> or <code>long?</code>) into a <code>ShiftEntitySelectDTO</code> with both the ID and the navigation property's display label.</li>
-        <li><code>selectDTO.ToForeignKey()</code> / <code>.ToNullableForeignKey()</code> — the reverse: pull the underlying <code>long</code>/<code>long?</code> back out of a SelectDTO.</li>
-        <li><code>json.ToShiftFiles()</code> / <code>files.ToJsonString()</code> — convert between a JSON column and a <code>List&lt;ShiftFileDTO&gt;</code> for entities that store file metadata in a JSON blob.</li>
-        <li><code>source.ShallowCopyTo(target)</code> — reflection-based shallow copy of all settable properties; used by manual implementations of <code>CopyEntity</code> for the <code>ReloadAfterSave</code> path.</li>
+        <li>
+            <b>Name matching is case-insensitive</b> by default (an exact-case match
+            always wins), so bringing across a DTO that a convention mapper used to
+            feed does not silently lose members. Opt into exact matching per mapper
+            with <code>map.CaseSensitive()</code>. A name that matches several
+            members differing only by case, with no exact match, is skipped and
+            reported as <code>SHENGEN011</code>.
+        </li>
+        <li>
+            <b>Scalars</b>, symmetrically in both directions: an implicit conversion
+            is used as-is; <code>T?</code> into <code>T</code> becomes
+            <code>?? default</code>; conversion to and from <code>string</code> for
+            every numeric type, <code>bool</code>, <code>DateTime</code>,
+            <code>DateTimeOffset</code>, <code>TimeSpan</code>, <code>DateOnly</code>,
+            <code>TimeOnly</code>, <code>Guid</code> and enums (enum text parses by
+            name or number, case-insensitively); numeric to numeric and enum to
+            numeric via an explicit cast. Two unrelated enums are <b>not</b>
+            converted — that is a mistake, not a conversion.
+        </li>
+        <li>
+            <b>Text is always formatted and parsed with the invariant culture</b>,
+            because a DTO value crosses machines and locales. Malformed input throws
+            <code>ShiftEntityMappingException</code>, which names the member and the
+            value, and is its own exception type so a host can treat it as bad input
+            (400) rather than a server fault (500). It deliberately does not
+            parse-or-default: a member that quietly becomes <code>0</code> or
+            <code>1970-01-01</code> saves a row that looks fine and is wrong.
+        </li>
+        <li>
+            <b>Foreign keys.</b> An entity <code>XID</code> of type <code>long</code>
+            or <code>long?</code> pairs with a DTO member <code>X</code> of type
+            <code>ShiftEntitySelectDTO</code>, taking the display text from the
+            navigation's text property when there is one. The write direction
+            converts back. The suffix test ignores case, so <code>CompanyId</code>
+            works too.
+        </li>
+        <li>
+            <b>Files.</b> A <code>List&lt;ShiftFileDTO&gt;</code> on the DTO pairs
+            with a <code>string</code> JSON column on the entity.
+        </li>
+        <li>
+            <b>Base fields.</b> For a <code>ShiftEntityViewAndUpsertDTO</code> over a
+            <code>ShiftEntity</code>, <code>MapBaseFields</code> fills
+            <code>ID</code>, <code>IsDeleted</code> and the four audit fields; in the
+            list projection <code>ID</code> and <code>IsDeleted</code> are bound
+            inline. <code>Tags</code> and <code>Revisions</code> are deliberately
+            left alone — the repository splices tags in on the read side, so mappers
+            never touch them.
+        </li>
+        <li>
+            <b>Collections.</b> Element type and container type are converted
+            independently — <code>List</code>, <code>ICollection</code>,
+            <code>IEnumerable</code>, the <code>IReadOnly</code> interfaces,
+            <code>HashSet</code> and arrays in any pairing, for simple and complex
+            elements alike, materialised into the member's own container type.
+        </li>
     </ul>
 
+    <h3>Deep composition</h3>
     <p>
-        With these helpers, a typical manual mapper for a Product entity looks
-        roughly like:
+        A "child" is any pairable class — different from the entity class, not
+        abstract, not itself an entity type, and not
+        <code>ShiftEntitySelectDTO</code> or <code>ShiftFileDTO</code> — as a single
+        object or as a collection. That includes plain JSON-column POCOs and owned
+        types, not just <code>ShiftEntity</code> navigations. Children are composed
+        <b>automatically</b> up to a maximum depth (10 by default; set it per
+        repository, mapper or assembly with
+        <code>[ShiftEntityMapperMaxDepth(n)]</code>, or fluently with
+        <code>map.MaxDepth(n)</code>):
+    </p>
+    <ul>
+        <li><b>View</b> — the child DTO is built through the generated pair mapper.</li>
+        <li><b>Entity (write)</b> — replace-with-new: each child DTO becomes a brand-new child entity. This is not a merge and not an update-by-ID.</li>
+        <li><b>List</b> — composed inline into the SQL projection as a correlated member-init, recursively, so EF turns it into joins.</li>
+    </ul>
+    <p>
+        All three directions compose the <b>same</b> set of members — a child the
+        view reads is a child the entity writes — because that asymmetry is exactly
+        the bug this design exists to prevent (children that read back fine and are
+        silently emptied on save). The explicit
+        <code>ForViewChild</code> / <code>ForEntityChild</code> / <code>ForListChild</code>
+        family (and the <code>...Children</code> forms) is for customizing a
+        particular child or for composing <i>past</i> the cap. A cycle is detected,
+        the edge skipped, and <code>SHENGEN003</code> raised.
     </p>
 
-    <DocCodeBlock Code="@(@"public ProductDTO MapToView(Product entity)
-{
-    return new ProductDTO
+    <h3>What the conventions deliberately do not do</h3>
+    <ul>
+        <li>
+            <b>The list direction is restricted to what EF can turn into SQL</b>:
+            casts, and <code>ToString()</code> on numerics only. Parsing text has no
+            trustworthy SQL equivalent, and casting a date or a bool to text is
+            provider-specific, so those conversions are not emitted into the
+            projection — the member is reported by <code>SHENGEN007</code> at build
+            time instead of failing at query time.
+        </li>
+        <li>
+            <b>Flattening is not implemented, on purpose.</b>
+            <code>Vehicle.VIN</code> does not become <code>VehicleVIN</code>. An
+            unbound member is never silently invented; it is reported.
+            <code>SHENGEN007</code> even prints a paste-ready
+            <code>map.ForList(...)</code> line with the flattened path filled in when
+            the name resolves to one, which is what makes leaving flattening out
+            affordable.
+        </li>
+        <li>
+            <b>Init-only DTO properties</b> cannot be assigned by a generated mapper
+            (it constructs and then sets), so they are reported as unmapped, with the
+            fix being to give the property a settable setter.
+        </li>
+        <li>
+            <b>Dropping a member</b> is explicit:
+            <code>[ShiftEntityMapperIgnore]</code> on the property, or
+            <code>map.Ignore(...)</code> and its per-direction siblings. The member is
+            <i>omitted from the generated code</i> rather than skipped at runtime, and
+            a complex child's whole subtree is pruned with it.
+        </li>
+    </ul>
+</DocSection>
+
+<DocSection Title="What the build tells you: the SHENGEN diagnostics">
+    <p>
+        The split is deliberate. <b>Errors</b> mark something that cannot be
+        expressed at build time, or that would run silently wrong.
+        <b>Warnings</b> mark something merely skipped — promote any of them with
+        <code>&lt;WarningsAsErrors&gt;SHENGEN007&lt;/WarningsAsErrors&gt;</code>.
+        All of them are raised by
+        <code>ShiftEntity.SourceGenerator/ShiftEntityMapperGenerator.cs</code>.
+    </p>
+    <ul>
+        <li><code>SHENGEN001</code> <b>(error)</b> — a <code>[ShiftEntityMapper]</code> class is not <code>partial</code>. Make it partial.</li>
+        <li><code>SHENGEN002</code> <b>(error)</b> — a <code>[ShiftEntityMapper]</code> class implements neither <code>IShiftEntityMapper&lt;E, L, V&gt;</code> nor <code>IShiftObjectMapper&lt;E, D&gt;</code>. Add the interface.</li>
+        <li><code>SHENGEN003</code> <b>(warning)</b> — a deep-mapping cycle; the member is skipped. Customize it, or take it off the DTO.</li>
+        <li><code>SHENGEN004</code> <b>(warning)</b> — view DTO members that no convention and no deep composition reaches. Map them with <code>ForView</code> or <code>Configure</code>, take the method over, or adjust the DTO.</li>
+        <li><code>SHENGEN005</code> <b>(error)</b> — mapper configuration registered inside an <code>if</code>, <code>else</code>, <code>switch</code>, loop, <code>?:</code>, <code>&amp;&amp;</code>, <code>||</code> or <code>??</code>. Decisions are baked, so a skipped branch would silently drop the member to its default. Register unconditionally and put the condition <i>inside</i> the value delegate — <code>map.ForView(d =&gt; d.X, (e, _) =&gt; cond ? a : b)</code>. There is deliberately no runtime opt-out.</li>
+        <li><code>SHENGEN006</code> <b>(error)</b> — an entity declares <code>IConfiguresShiftRepository&lt;E, L, V&gt;</code> while a repository for the same triple passes an options builder to its base constructor. Passing a builder means the repository takes over completely, so the entity's <code>ConfigureRepository</code> would never run. Move the configuration into the repository's builder, or drop the builder.</li>
+        <li><code>SHENGEN007</code> <b>(warning)</b> — list DTO members the projection does not bind, so the column comes back empty. The message prints a paste-ready <code>map.ForList(...)</code> line, filling in the flattened path when the name resolves to one.</li>
+        <li><code>SHENGEN008</code> <b>(warning)</b> — DTO members that <code>MapToView</code> reads and <code>MapToEntity</code> never writes back: they display correctly and silently fail to save. Map them with <code>ForEntity</code>, or declare them read-only with <code>IgnoreEntity</code>. This is deliberately the read/write <i>asymmetry</i>, not a mirror of 004, which would warn on every internal column.</li>
+        <li><code>SHENGEN009</code> <b>(error)</b> — configuration the generator cannot read at build time: a selector that is not a plain property access, a non-constant depth, an open-generic receiver, and above all a registration made from <b>another assembly</b>. Without this the generator would bake the plain convention and the call would do nothing at all — <code>map.Ignore(x =&gt; x.Secret)</code> would compile, run, and still map the member. Its runtime twin is <code>ShiftMapperBuilder.VerifyBaked</code>, which throws at first use for the cross-assembly case no compilation-local analysis can see.</li>
+        <li><code>SHENGEN010</code> <b>(warning)</b> — automatic deep <i>write</i> would replace tracked child rows that carry a required foreign key back to the parent, so saving would either fail on the FK or orphan and duplicate rows. Reconcile instead with <code>map.AfterEntity(...)</code> or the <code>existing</code>-aware <code>map.ForEntity(...)</code>, or <code>IgnoreEntity</code> the member and handle it in the repository.</li>
+        <li><code>SHENGEN011</code> <b>(warning)</b> — a name matches several members differing only by case, and none exactly; the member is skipped. Rename one, or map it explicitly.</li>
+    </ul>
+</DocSection>
+
+<DocSection Title="Helpers for hand-written mappers">
+    <p>
+        Hand-writing a mapper gets tedious fast for entities with audit fields,
+        foreign keys and file references, so <code>ShiftEntity.Core</code> ships a
+        set of extension helpers (<code>MappingHelpers</code>) that take the
+        boilerplate away while keeping the mapping explicit. Generated mappers emit
+        calls into these same helpers, so the two styles produce identical values.
+    </p>
+    <ul>
+        <li><code>dto.MapBaseFields(entity)</code> — <code>ID</code>, <code>IsDeleted</code> and the four audit fields onto a view/upsert DTO. Returns the DTO for chaining.</li>
+        <li><code>dto.MapBaseListFields(entity)</code> — <code>ID</code> and <code>IsDeleted</code> onto a list DTO. <b>In-memory only</b>: never usable inside an <code>IQueryable</code> projection.</li>
+        <li><code>source.CopyBaseFields(target)</code> — audit fields plus <code>IsDeleted</code>, entity to entity.</li>
+        <li><code>source.ShallowCopyTo(target)</code> — cached-reflection shallow copy of every settable property <i>except</i> <code>ID</code>, <code>ReloadAfterSave</code> and <code>AuditFieldsAreSet</code>. This is the default body for a hand-written <code>CopyEntity</code>.</li>
+        <li><code>id.ToSelectDTO(text)</code> for <code>long</code> and <code>long?</code>, and <code>selectDTO.ToForeignKey()</code> / <code>.ToNullableForeignKey()</code> back the other way.</li>
+        <li><code>json.ToShiftFiles()</code> / <code>files.ToJsonString()</code> — between a JSON column and a <code>List&lt;ShiftFileDTO&gt;</code>.</li>
+        <li>Scalars: <code>ToLong</code> / <code>ToNullableLong</code>, <code>ToGuid</code> / <code>ToNullableGuid</code>, <code>ToInvariantText</code>, <code>ToValue&lt;T&gt;</code> / <code>ToNullableValue&lt;T&gt;</code>, <code>ToEnum&lt;T&gt;</code> / <code>ToNullableEnum&lt;T&gt;</code> — invariant culture throughout, throwing <code>ShiftEntityMappingException</code> (naming the member, the value and the target type) rather than defaulting.</li>
+    </ul>
+
+    <p>With these helpers, a repository that maps a Product by hand looks like:</p>
+
+    <DocCodeBlock Code="@(@"public override ProductDTO MapToView(Product entity, MappingContext context = default) =>
+    new ProductDTO
     {
         Name = entity.Name,
         Price = entity.Price,
 
         // Foreign key + display label in one call
-        ProductCategory = entity.ProductCategoryID
-            .ToSelectDTO(entity.ProductCategory?.Name),
-
-        ProductBrand = entity.ProductBrandID
-            .ToSelectDTO(entity.ProductBrand?.Name),
+        ProductCategory = entity.ProductCategoryID.ToSelectDTO(entity.ProductCategory?.Name),
+        ProductBrand = entity.ProductBrandID.ToSelectDTO(entity.ProductBrand?.Name),
     }
-    .MapBaseFields(entity);   // ID + audit fields, fluent
-}")" />
+    .MapBaseFields(entity);   // ID, IsDeleted + audit fields, fluent")" />
 
     <p>
-        The result is mapping code that's still explicit (every field is
-        visible) but doesn't drown in <code>CreateDate = entity.CreateDate</code>
-        repetitions.
+        The result is mapping code that is still explicit — every field is visible —
+        without drowning in <code>CreateDate = entity.CreateDate</code> repetitions.
     </p>
 </DocSection>
 
-<DocSection Title="A practical recommendation">
+<DocSection Title="When nothing covers a triple the app does not start">
     <p>
-        If you're starting a new project today, the honest recommendation is:
+        <code>RegisterShiftRepositories(...)</code> wires
+        <code>ShiftEntityMapperValidation.Validate</code> unconditionally — there is
+        no mode or flag that turns it off. The check is type-level, so it runs
+        without booting the app.
     </p>
-    <ul>
-        <li>
-            <b>Start with AutoMapper</b> if you're learning the framework and
-            want the lowest friction. The default template registers it; you
-            don't have to think about it.
-        </li>
-        <li>
-            <b>Switch to Manual</b> the moment you hit a mapping bug that
-            should have been a compile error, or the moment you find yourself
-            hand-coding around a flattening rule. Manual is the most boring,
-            most predictable choice — and "boring and predictable" is what you
-            want from a mapping layer.
-        </li>
-        <li>
-            <b>Use Mapperly</b> if you have measured a real bottleneck in
-            mapping performance and need to eliminate runtime reflection. Don't
-            reach for it speculatively.
-        </li>
-        <li>
-            <b>Use Mapster</b> if you're migrating an existing AutoMapper
-            project and want a similar API with better runtime characteristics.
-        </li>
-    </ul>
+    <p>
+        It walks every triple it can discover (endpoint attributes plus
+        <code>ShiftRepository</code> subclasses) and counts one as covered if any of
+        the following holds: a DI registration for
+        <code>IShiftEntityMapper&lt;E, L, V&gt;</code> exists, the registry holds a
+        generated mapper for it, or the repository itself <i>declares</i> one of the
+        four mapping methods. That last test is deliberately based on the declaring
+        type — asking "does this type have a <code>MapToView</code>?" is true of
+        every repository and would validate nothing.
+    </p>
+    <p>
+        Everything it finds is reported together, in one
+        <code>InvalidOperationException</code>: uncovered triples (<i>"(Product,
+        ProductListDTO, ProductDTO) — no mapper. Add a [ShiftEntityMapper] partial
+        class, call UseMapper/UseGeneratedMapper in the repository, or override the
+        mapping methods."</i>), registry conflicts, and mappers that can no longer
+        bind to this version of ShiftEntity — a generated mapper is code frozen on
+        its own build day, so the fix there is to rebuild and republish the assembly
+        that owns it.
+    </p>
+    <p>
+        In one line: this is the difference between caught in CI and caught in
+        production. The same gap used to be a 500 on whichever endpoint a user
+        opened first.
+    </p>
+
+    <DocCallout Type="DocCalloutType.Note">
+        If a repository is nonetheless constructed with no mapper — for example
+        <code>options.UseMapper(null)</code> and no override — each of the four
+        mapping methods throws <i>"No mapper configured. Override MapToView() or set
+        one via UseMapper()."</i> on use.
+    </DocCallout>
+</DocSection>
+
+<DocSection Title="Where the generator runs">
+    <p>
+        <code>ShiftEntity.SourceGenerator</code> ships as an <b>analyzer</b> inside
+        the <code>ShiftSoftware.ShiftEntity</code> package, so it runs on the project
+        that declares your entities and repositories. In the sample that is
+        <code>StockPlusPlus.Data</code> — look for generated mappers there, not in
+        the test projects.
+    </p>
+    <p>
+        It emits triple mappers (<code>IShiftEntityMapper&lt;E, L, V&gt;</code>) plus
+        <b>pair</b> mappers (<code>IShiftObjectMapper&lt;childEntity, childDto&gt;</code>)
+        for child members, recursively, and registers them into
+        <code>ShiftEntityMapperRegistry</code> from a module initializer.
+        Reflection-only scans must force module constructors first; the framework
+        does this for you.
+    </p>
+    <p>
+        On attribute-driven endpoints:
+        <code>[ShiftEntityEndpoint&lt;TList, TView&gt;]</code> and its secure form
+        keep the built-in repository, which resolves the generated mapper on its own.
+        Setting <code>UseGeneratedMapper = true</code> makes that explicit and fails
+        loudly if no generated mapper exists for the triple (it is rejected alongside
+        a custom repository or a mapper attribute).
+        <code>[ShiftEntityEndpointWithMapper&lt;TList, TView, TMapper&gt;]</code> and
+        <code>[ShiftEntitySecureEndpointWithMapper&lt;...&gt;]</code> keep the built-in
+        repository but supply the mapper; <code>TMapper</code> is constrained to the
+        non-generic <code>IShiftEntityMapper</code> marker and the exact triple is
+        validated at discovery. A mapper-backed endpoint needs its <b>own</b> DTO
+        type, because mappers are keyed by DTO type.
+    </p>
 </DocSection>
 
 <DocSection Title="What's next">

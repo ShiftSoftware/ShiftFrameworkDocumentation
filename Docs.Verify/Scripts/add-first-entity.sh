@@ -32,6 +32,7 @@ rm -rf MyFirstShiftApp.Shared/DTOs/Vehicle \
        MyFirstShiftApp.Data/Entities/Vehicle.cs \
        MyFirstShiftApp.Data/DbContext/Vehicle.cs \
        MyFirstShiftApp.Data/Repositories/VehicleRepository.cs \
+       MyFirstShiftApp.Data/Mappers/VehicleMapper.cs \
        MyFirstShiftApp.API/Controllers/VehicleController.cs \
        MyFirstShiftApp.Web/Pages/Vehicle
 
@@ -39,12 +40,13 @@ echo "[verify] scaffolding Vehicle entity..."
 dotnet new shiftentity -n Vehicle --solution MyFirstShiftApp
 if [ $? -ne 0 ]; then echo "[verify] entity scaffold failed"; exit 1; fi
 
-echo "[verify] confirming the eight expected files were generated..."
+echo "[verify] confirming the nine expected files were generated..."
 expected_files=(
     "MyFirstShiftApp.Shared/DTOs/Vehicle/VehicleDTO.cs"
     "MyFirstShiftApp.Shared/DTOs/Vehicle/VehicleListDTO.cs"
     "MyFirstShiftApp.Data/Entities/Vehicle.cs"
     "MyFirstShiftApp.Data/Repositories/VehicleRepository.cs"
+    "MyFirstShiftApp.Data/Mappers/VehicleMapper.cs"
     "MyFirstShiftApp.Data/DbContext/Vehicle.cs"
     "MyFirstShiftApp.API/Controllers/VehicleController.cs"
     "MyFirstShiftApp.Web/Pages/Vehicle/VehicleForm.razor"
@@ -56,7 +58,7 @@ for f in "${expected_files[@]}"; do
         exit 1
     fi
 done
-echo "[verify] all 8 files present"
+echo "[verify] all 9 files present"
 
 echo "[verify] building the API project to confirm everything compiles..."
 dotnet build MyFirstShiftApp.API/MyFirstShiftApp.API.csproj 2>&1 | tail -5

@@ -22,6 +22,13 @@
 
 		<ProjectReference Include="..\..\ShiftEntity\ShiftEntity.EFCore\ShiftEntity.EFCore.csproj" Condition="Exists('..\..\ShiftEntity\ShiftEntity.EFCore\ShiftEntity.EFCore.csproj')" />
 		<ProjectReference Include="..\..\ShiftEntity\ShiftEntity.Print\ShiftEntity.Print.csproj" Condition="Exists('..\..\ShiftEntity\ShiftEntity.Print\ShiftEntity.Print.csproj')" />
+
+		<!-- The mapper source generator. In package mode it arrives as an analyzer inside the ShiftEntity
+		     package; in development mode the ProjectReferences above take the place of those packages, which
+		     drops the analyzer along with them - so it has to be named explicitly here, exactly as
+		     StockPlusPlus.Data and ShiftIdentity.Data do. Without it these repositories have no mapper at all
+		     (neither configures one), and startup validation fails. -->
+		<ProjectReference Include="..\..\ShiftEntity\ShiftEntity.SourceGenerator\ShiftEntity.SourceGenerator.csproj" Condition="Exists('..\..\ShiftEntity\ShiftEntity.SourceGenerator\ShiftEntity.SourceGenerator.csproj')" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
 	</ItemGroup>
 
 </Project>

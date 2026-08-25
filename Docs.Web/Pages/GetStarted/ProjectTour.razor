@@ -57,9 +57,9 @@ YourApp.Shared   ← DTOs, enums, action trees (shared between API and Web)</cod
         <li><b>Entities</b> — the EF Core entity classes. Each one inherits from <code>ShiftEntity&lt;T&gt;</code>, which gives it ID, soft-delete, audit fields, and the ReloadAfterSave hook for free.</li>
         <li><b>DbContext</b> — your <code>YourAppDbContext</code> registering all entities. Inherits from a Shift base class that wires up multi-tenancy, audit, and conventions.</li>
         <li><b>Repositories</b> — one per entity, inheriting <code>ShiftRepository&lt;T, TListDTO, TViewDTO&gt;</code>. The repository is where business rules and authorization checks live, not in the controller.</li>
-        <li><b>Mappers</b> — translate between entities and DTOs. Multiple mapping strategies are supported (AutoMapper, Manual, Mapperly, Mapster) and can be swapped via <code>appsettings.json</code> with no code changes.</li>
+        <li><b>Mappers</b> — translate between entities and DTOs, through <code>IShiftEntityMapper</code>. Most entities need no file here at all: the ShiftEntity source generator emits a convention-based mapper for each entity/list-DTO/view-DTO triple at build time. This folder holds only the ones you customize — a <code>[ShiftEntityMapper]</code> partial class the generator fills in, or a fully hand-written mapper.</li>
         <li><b>Migrations</b> — EF Core migration files. Run <code>dotnet ef database update</code> from this project's directory.</li>
-        <li><b>AutoMapperProfiles</b> — mapping profiles for the AutoMapper strategy (the default).</li>
+        <li><b>Projections</b> / <b>Evaluators</b> — query-shaping helpers used by the sample repositories.</li>
         <li><b>ReplicationModels</b> — projections used by the optional Cosmos DB replication feature.</li>
     </ul>
 </DocSection>
@@ -72,11 +72,11 @@ YourApp.Shared   ← DTOs, enums, action trees (shared between API and Web)</cod
         gives you the full app.
     </p>
     <ul>
-        <li><b>Program.cs</b> — composition root. Wires up DI, mapping strategy, ShiftIdentity, TypeAuth, OData, Azure Storage, and the Blazor middleware. This is where you configure the app, not in scattered config files.</li>
+        <li><b>Program.cs</b> — composition root. Wires up DI, ShiftIdentity, TypeAuth, OData, Azure Storage, and the Blazor middleware. Its <code>RegisterShiftRepositories(...)</code> call also validates the mapping layer at startup — an entity/DTO triple with no mapper fails the boot rather than the first request. This is where you configure the app, not in scattered config files.</li>
         <li><b>Controllers</b> — thin REST/OData controllers, one per entity. They typically just delegate to the matching repository in <code>YourApp.Data</code>. Business logic does <b>not</b> belong here.</li>
         <li><b>Services</b> — supporting services like <code>SendEmailService</code>. Anything that doesn't fit a repository pattern.</li>
         <li><b>Reports</b> — FastReport (.frx) report templates and the controller endpoints that render them.</li>
-        <li><b>appsettings.json</b> / <b>appsettings.Development.json</b> — connection strings, Azure Storage credentials, identity configuration, mapping strategy toggle.</li>
+        <li><b>appsettings.json</b> / <b>appsettings.Development.json</b> — connection strings, Azure Storage credentials, identity configuration.</li>
     </ul>
 
     <DocCallout Type="DocCalloutType.Tip">

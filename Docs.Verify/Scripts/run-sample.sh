@@ -74,7 +74,7 @@ export ConnectionStrings__SQLServer="${CONNSTR}"
 export ConnectionStrings__LiveIdentitySQLServer="${CONNSTR}"
 
 # Force Development environment so appsettings.Development.json (which contains
-# the TokenSettings, MappingStrategy, etc.) actually loads. The template ships
+# the TokenSettings, etc.) actually loads. The template ships
 # only Development config — no base appsettings.json — so without this the API
 # crashes on startup with a null PublicKey.
 export ASPNETCORE_ENVIRONMENT=Development

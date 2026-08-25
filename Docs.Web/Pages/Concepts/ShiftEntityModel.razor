@@ -39,7 +39,10 @@ public class Product : ShiftEntity<Product>
         <li><code>LastReplicationDate</code> for the optional Cosmos DB replication pipeline</li>
         <li>The <code>ReloadAfterSave</code> hook for repositories that need fresh state after a save</li>
         <li>Compatibility with the <code>ShiftRepository</code> base class and the OData query pipeline</li>
-        <li>Compatibility with the <code>IShiftEntityMapper</code> abstraction (Manual / Mapperly / Mapster / AutoMapper)</li>
+        <li>Compatibility with the <code>IShiftEntityMapper</code> abstraction — the
+            source generator produces a convention-based mapper for the entity's
+            DTO triple with no code from you, and you can replace or customize it
+            per repository</li>
     </ul>
 </DocSection>
 
@@ -99,9 +102,18 @@ public class Product : ShiftEntity<Product>
     </p>
 
     <p>
-        Every <code>SELECT</code> the framework issues then automatically filters
-        out soft-deleted rows via an EF Core global query filter. From the
-        application's perspective, the row is gone. From the database's
+        List endpoints then filter soft-deleted rows out automatically: the Web
+        layer appends <code>.Where(x =&gt; !x.IsDeleted)</code> to the projected
+        list-DTO query (unless the caller already filtered on
+        <code>IsDeleted</code>). This is not an EF Core global query filter — it
+        runs on the projected DTO, which is why a hand-written
+        <code>MapToList</code> must bind <code>IsDeleted</code>. It also covers
+        ROOT rows only: children composed deep inside a payload are not filtered
+        by it.
+    </p>
+
+    <p>
+        From the application's perspective, the row is gone. From the database's
         perspective, it's still there, available for audit, recovery, and
         historical reporting.
     </p>
