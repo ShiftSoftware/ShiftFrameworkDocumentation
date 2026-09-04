@@ -6,11 +6,7 @@
 @using System.Reflection
 @using static MudBlazor.Icons
 
-@inherits ShiftForm<CustomerForm, CustomerDTO>
-
-<ShiftEntityForm @bind-Mode="Mode"
-                 @bind-Value="TheItem"
-                 @ref="FormContainer"
+<ShiftEntityForm @bind-Value="_theItem"
                  Endpoint="Customer"
                  Title="Customer"
                  TypeAuthAction="null"
@@ -18,13 +14,13 @@
 
     <MudTextFieldExtended OnlyValidateIfDirty="true"
                           Label="Name"
-                          @bind-Value="TheItem.Name"
-                          For="@(() => TheItem.Name)" />
+                          @bind-Value="context.Item.Name"
+                          For="@(() => context.Item.Name)" />
 
     <MudSelectExtended T="string"
-                       @bind-Value="TheItem.AvatarIcon"
+                       @bind-Value="context.Item.AvatarIcon"
                        Label="Avatar"
-                       For="() => TheItem.AvatarIcon">
+                       For="() => context.Item.AvatarIcon">
         @foreach (var icon in Icons.Take(100))
         {
             <MudSelectItem Value="@icon">
@@ -35,8 +31,8 @@
 
     <MudSelectExtended T="int"
                        Label="Avatar Color"
-                       @bind-Value="TheItem.AvatarColor"
-                       For="() => TheItem.AvatarColor">
+                       @bind-Value="context.Item.AvatarColor"
+                       For="() => context.Item.AvatarColor">
         <MudSelectItem Value="@((int)Color.Default)"><MudAvatar Size="Size.Small" Color="@Color.Default"></MudAvatar> Default</MudSelectItem>
         <MudSelectItem Value="@((int)Color.Primary)"><MudAvatar Size="Size.Small" Color="@Color.Primary"></MudAvatar> Primary</MudSelectItem>
         <MudSelectItem Value="@((int)Color.Secondary)"><MudAvatar Size="Size.Small" Color="@Color.Secondary"></MudAvatar> Secondary</MudSelectItem>
@@ -54,6 +50,11 @@
 
 @code {
     [Parameter]
+    public object? Key { get; set; }
+
+    private CustomerDTO _theItem = new();
+
+    [Parameter]
     public string? Name { get; set; }
 
     List<string> Icons = typeof(Material.Filled)
@@ -66,7 +67,7 @@
     {
         if (!string.IsNullOrWhiteSpace(Name))
         {
-            TheItem.Name = Name;
+            _theItem.Name = Name;
         }
     }
 }
