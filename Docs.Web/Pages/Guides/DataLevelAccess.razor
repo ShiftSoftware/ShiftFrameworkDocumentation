@@ -1,0 +1,197 @@
+@page "/guides/data-level-access"
+
+<DocPageMeta Title="Data-level access"
+             Section="Guides"
+             Order="30"
+             Status="DocPageStatus.Draft"
+             Description="Restrict rows by standard organization markers, override a standard dimension, and reuse the same policy for custom queries and writes."
+             Keywords="data level access,row level security,company,marker,typeauth,repository,policy,authorization" />
+
+<DocSection Title="What data-level access controls">
+    <p>
+        TypeAuth on a controller answers <i>whether</i> a caller may use an endpoint.
+        Data-level access answers <i>which rows</i> that caller may read, create,
+        change, or delete. You normally need both: the controller checks the
+        operation, then the repository applies the row policy.
+    </p>
+
+    <p>
+        The v2 policy is declared once and drives both paths. It adds an
+        <code>IQueryable</code> predicate for lists and finds, and evaluates the
+        same dimensions against an entity for inserts, edits, and deletes.
+    </p>
+
+    <DocCallout Type="DocCalloutType.Note">
+        These examples are compile-checked against the current local framework source.
+        The query and row behavior is also verified through a scoped-token SQL
+        Server lifecycle test covering list, find, insert, edit, and delete. Promote
+        this page to Reviewed only after the APIs ship and the package-only compile passes.
+    </DocCallout>
+</DocSection>
+
+<DocSection Title="Opt the host into data-level access">
+    <p>
+        Data-level access is an explicit host choice. Add this once in the API
+        or Functions host during service registration:
+    </p>
+
+    <DocSnippet Name="DataLevelAccessHostOptIn" Language="cs" />
+
+    <p>
+        This single call installs the scoped v2 policy engine and the standard
+        seven-marker profile. Calling <code>AddShiftEntityWeb</code> alone does
+        neither. The explicit opt-in prevents a package upgrade from silently
+        changing authorization for every existing entity.
+    </p>
+</DocSection>
+
+<DocSection Title="Use the standard marker profile">
+    <p>
+        After the host opts in, the framework recognizes these marker interfaces:
+        <code>IEntityHasCountry</code>, <code>IEntityHasRegion</code>,
+        <code>IEntityHasCompany</code>, <code>IEntityHasCompanyBranch</code>,
+        <code>IEntityHasBrand</code>, <code>IEntityHasCity</code>, and
+        <code>IEntityHasTeam</code>. Each marker contributes its standard
+        ShiftIdentity data-level action, key column, and hash-ID type. It also
+        contributes the matching self claim where that dimension has one; Brand
+        has no self claim, while Team can use all of the caller's Team claims.
+    </p>
+
+    <DocSnippet Name="DataLevelAccessStandardMarker" Language="cs" />
+
+    <p>
+        This entity receives the standard Companies dimension automatically.
+        Existing <code>DefaultDataLevelAccessOptions</code> disable flags are
+        honored when the profile is built. Several marker dimensions are combined
+        with AND: a row must satisfy every enabled dimension.
+    </p>
+</DocSection>
+
+<DocSection Title="Override one standard dimension with OR keys">
+    <p>
+        Sometimes one logical dimension is stored in more than one column. The
+        example below allows a company to reach a shipment through either its
+        owner company or its intermediary company:
+    </p>
+
+    <DocSnippet Name="DataLevelAccessSameActionOverride" Language="cs" />
+
+    <p>
+        <code>Keys</code> means OR within this dimension. The row matches when
+        either column is in the caller's accessible Companies set. Because the
+        explicit declaration uses the same Companies action as the standard
+        marker, it <b>replaces</b> the standard single-column Company dimension.
+        It is not appended with AND. Standard dimensions for other marker actions
+        remain automatic.
+    </p>
+
+    <ul>
+        <li><code>HashId&lt;CompanyDTO&gt;()</code> decodes the TypeAuth item IDs with the same Company hash-ID key used by ShiftIdentity.</li>
+        <li><code>Self(...)</code> lets a TypeAuth self-reference resolve from the caller's Company claim.</li>
+        <li>Two explicit dimensions that use different actions still combine with AND.</li>
+    </ul>
+</DocSection>
+
+<DocSection Title="Add an application-specific dimension">
+    <p>
+        The standard seven markers are conveniences, not a closed list. Define a
+        dynamic TypeAuth action in your application's action tree, register that
+        tree through your normal <code>AddTypeAuth</code> setup, and use the action
+        in a repository declaration:
+    </p>
+
+    <DocSnippet Name="DataLevelAccessCustomAction" Language="cs" />
+    <DocSnippet Name="DataLevelAccessCustomDimension" Language="cs" />
+
+    <p>
+        With no <code>HashId</code> declaration, the action's item IDs must be
+        numeric strings that can be parsed to the entity key type. Add
+        <code>HashId&lt;YourDto&gt;()</code> when the action stores encoded IDs.
+        A custom dimension AND-composes with any other dimensions on that entity.
+    </p>
+</DocSection>
+
+<DocSection Title="How v2 and legacy coexist">
+    <p>The repository chooses one effective path for an entity:</p>
+    <ul>
+        <li><b>No host opt-in and no v2 declaration:</b> existing legacy data-level behavior remains unchanged.</li>
+        <li><b>No host opt-in but a v2 declaration exists:</b> the repository fails closed when it tries to use the missing scoped engine.</li>
+        <li><b>Host opt-in with an explicit declaration:</b> that v2 declaration is the complete policy for an unmarked entity; the legacy row and query checks do not also run.</li>
+        <li><b>Host opt-in with markers:</b> enabled marker dimensions form the v2 policy.</li>
+        <li><b>Host opt-in, markers, and an explicit declaration:</b> the declaration replaces standard dimensions for matching actions and extends the rest.</li>
+        <li><b>Host opt-in with no marker and no declaration:</b> the standard profile contributes nothing, so the repository keeps its legacy fallback.</li>
+        <li><b>Explicit <code>Unscoped()</code>:</b> both standard and legacy data-level checks are deliberately disabled for that entity.</li>
+    </ul>
+
+    <DocCallout Type="DocCalloutType.Warning">
+        Do not disable a legacy dimension and replace it with a query-only filter.
+        That leaves inserts, edits, and deletes without the matching row check.
+        A v2 declaration is the replacement because it controls both paths.
+    </DocCallout>
+
+    <DocCallout Type="DocCalloutType.Warning">
+        If your host replaced <code>IDefaultDataLevelAccess</code> or relies on a
+        custom legacy global filter, audit that behavior before opting in. Once
+        an effective v2 policy exists, it is the complete query-and-row verdict;
+        the legacy implementation does not run beside it.
+    </DocCallout>
+</DocSection>
+
+<DocSection Title="Read and write behavior">
+    <p>The repository selects the TypeAuth access level at each operation stage:</p>
+    <ul>
+        <li>Lists and single-record fetches use <b>Read</b>, including the fetch before an edit or delete.</li>
+        <li>An inserted row and the mapped result of an edit use <b>Write</b>.</li>
+        <li>The row authorization before a delete uses <b>Delete</b>.</li>
+    </ul>
+
+    <p>
+        A Read-only grant can therefore return a row without permitting a later
+        update or delete. An empty accessible set denies the dimension. A wildcard
+        passes that dimension. Every declared dimension must pass before the
+        operation is allowed.
+    </p>
+</DocSection>
+
+<DocSection Title="Reuse the policy in a manual query">
+    <p>
+        Normal repository queries already apply data-level access. If a custom
+        query starts directly from a <code>DbSet</code>, reuse the repository's
+        effective policy instead of rebuilding the predicate by hand:
+    </p>
+
+    <DocSnippet Name="DataLevelAccessManualQuery" Language="cs" />
+
+    <p>
+        Inject the scoped <code>DataLevelAccessContext</code> into the repository.
+        The public <code>DataLevelAccessPolicy</code> property includes standard
+        markers and explicit overrides, and it is resolved lazily after the
+        repository constructor has finalized its options.
+    </p>
+
+    <DocCallout Type="DocCalloutType.Warning">
+        A null v2 policy does not mean that a raw <code>DbSet</code> is safe to
+        return. It may mean the repository is using the legacy fallback. Start
+        from <code>GetIQueryable</code> in that case, or fail closed as the example
+        does.
+    </DocCallout>
+</DocSection>
+
+<DocSection Title="Choose NotFound or Forbidden for denied row fetches">
+    <p>
+        A denied single-record Read fetch returns Not Found by default. This avoids
+        revealing whether an out-of-scope ID exists. The same fetch happens before
+        an edit or delete. An application that prefers an explicit Forbidden response
+        for an existing row outside Read scope can declare it with the policy:
+    </p>
+
+    <DocSnippet Name="DataLevelAccessForbiddenDisclosure" Language="cs" />
+
+    <p>
+        This choice changes single-row fetch disclosure, including the prefetch for
+        edit and delete: default NotFound conceals an out-of-Read-scope row as 404,
+        while Forbidden surfaces it as 403. Lists remain filtered. If a row is
+        Read-visible but the caller lacks Write or Delete for it, the later operation
+        row check returns 403 under either disclosure setting.
+    </p>
+</DocSection>

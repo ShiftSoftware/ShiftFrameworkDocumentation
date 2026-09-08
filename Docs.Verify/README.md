@@ -10,8 +10,9 @@ This makes it **structurally impossible** for the commands shown in the docs to 
 
 ## Layout
 
-- `Scripts/` — bash scripts a real developer would run (install, scaffold, build, etc.).
+- `Scripts/` — bash verification harnesses, including the SQL-backed data-level-access lifecycle proof.
 - `Code/` — C# / Razor reference files used to anchor code snippets shown in Concepts and Guides pages.
+- `DataLevelAccessV2/` — compile-checked C# examples for the data-level-access guide.
 
 ## Snippet markers
 
