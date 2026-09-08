@@ -19,7 +19,7 @@ pause_if_interactive() {
         read -p "Press Enter to close..."
     fi
 }
-trap 'echo; echo "=== Script failed at line $LINENO ==="; pause_if_interactive' ERR
+trap 'echo; echo "=== Script failed at line $LINENO ==="; pause_if_interactive; exit 1' ERR
 
 # snippet:InstallTemplate
 dotnet new install ShiftSoftware.ShiftTemplates

@@ -64,6 +64,7 @@ if [ $? -ne 0 ]; then exit 1; fi
 
 echo "[verify] running the SQL Server query/row lifecycle proof on ${DB_NAME}..."
 dotnet test "${TEST_PROJECT}" --nologo --verbosity quiet \
+    --logger "console;verbosity=normal" \
     --filter "FullyQualifiedName~VehicleDataLevelAccessTests.CompanyOr_IsEnforcedEndToEndOnSqlServer" \
     -p:WarningLevel=0 "${BUILD_PROPERTIES[@]}"
 if [ $? -ne 0 ]; then exit 1; fi

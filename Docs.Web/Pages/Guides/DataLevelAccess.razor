@@ -3,7 +3,8 @@
 <DocPageMeta Title="Data-level access"
              Section="Guides"
              Order="30"
-             Status="DocPageStatus.Draft"
+             Status="DocPageStatus.Reviewed"
+             TestedAgainst="2026.09.08.2"
              Description="Restrict rows by standard organization markers, override a standard dimension, and reuse the same policy for custom queries and writes."
              Keywords="data level access,row level security,company,marker,typeauth,repository,policy,authorization" />
 
@@ -22,10 +23,9 @@
     </p>
 
     <DocCallout Type="DocCalloutType.Note">
-        These examples are compile-checked against the current local framework source.
+        These examples are compile-checked against the published framework packages.
         The query and row behavior is also verified through a scoped-token SQL
-        Server lifecycle test covering list, find, insert, edit, and delete. Promote
-        this page to Reviewed only after the APIs ship and the package-only compile passes.
+        Server lifecycle test covering list, find, insert, edit, and delete.
     </DocCallout>
 </DocSection>
 
