@@ -180,10 +180,9 @@ public class ProductController : ShiftEntitySecureControllerAsync<
     <p>
         The next page covers the
         <MudLink Href="/concepts/mapping-abstraction">mapping abstraction</MudLink> —
-        how the repository translates between entities and DTOs, what
-        <code>IShiftEntityMapper</code> is, and the four ways to supply one — a
-        source-generated mapper with no code at all, a generated mapper with
-        fluent build-time configuration, a <code>[ShiftEntityMapper]</code>
-        partial class, or a hand-written mapper.
+        how the repository translates between entities and DTOs, the four maps
+        ShiftMapper declares for every repository with no code at all, the one
+        mapper class per project where customizations live, and the two
+        hand-written doors that remain.
     </p>
 </DocSection>
