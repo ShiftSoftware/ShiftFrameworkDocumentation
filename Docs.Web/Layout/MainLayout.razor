@@ -29,16 +29,16 @@
             <MudButton Href="/" Color="Color.Inherit" Variant="Variant.Text" Class="@GetActiveClass(IsActive("/", true))">Home</MudButton>
             <MudButton Href="/docs" Color="Color.Inherit" Variant="Variant.Text" Class="@GetActiveClass(IsActive("/docs"))">Docs</MudButton>
             <MudMenu Color="Color.Inherit" Variant="Variant.Text" Class="mx-1 px-3" PopoverClass="docs-layout-menu-shadow" ListClass="d-flex px-4 pb-2 docs-appbar-special-menu" LockScroll="true" Label="Projects" EndIcon="@Icons.Material.Filled.KeyboardArrowDown" AnchorOrigin="Origin.BottomCenter" TransformOrigin="Origin.TopCenter">
-                <MudList T="string">
+               @*  <MudList T="string">
                     <MudListItem Href="/mud/introduction">
                         <div class="d-flex">
                             <MudText Color="Color.Primary">Shift Blazor</MudText>
                         </div>
                         <MudText Typo="Typo.body2">What is Shift Blazor?</MudText>
                     </MudListItem>
-                </MudList>
+                </MudList> *@
                 <MudList T="string" Class="relative">
-                    <MudListItem Href="https://github.com/MudBlazor/MudBlazor.Icons">
+                    <MudListItem Href="https://github.com/ShiftSoftware/TypeAuth">
                         <div class="d-flex">
                             <MudText>Type Auth</MudText>
                         </div>
