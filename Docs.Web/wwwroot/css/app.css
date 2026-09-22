@@ -78,6 +78,11 @@ code {
     color: #c02d76;
 }
 
+/* #c02d76 is too dark on the dark background. Skip Prism blocks (pre > code), which theme themselves. */
+.shift-dark :not(pre) > code {
+    color: #f48fb1;
+}
+
 .form-floating > .form-control-plaintext::placeholder, .form-floating > .form-control::placeholder {
     color: var(--bs-secondary-color);
     text-align: end;

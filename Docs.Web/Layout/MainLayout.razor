@@ -9,25 +9,27 @@
 <MudSnackbarProvider />
 
 <MudLayout Class="@($"shift-docs{(_isDarkMode ? " shift-dark" : "")}")">
-    <MudAppBar Class="docs-appbar-filter" Color="Color.Transparent" Elevation="0"></MudAppBar>
+    @* Uses the palette's translucent AppbarBackground so scrolled content is tinted and blurred behind the header. *@
+    <MudAppBar Class="docs-appbar-filter" Elevation="0"></MudAppBar>
     <MudAppBar Color="Color.Transparent" Class="docs-appbar" Elevation="0">
         <div style="padding: 8px 28px;" class="d-flex align-center flex-grow-1 d-md-none">
             <MudIconButton OnClick="@(() => _drawerOpen = !_drawerOpen)" Icon="@Icons.Material.Rounded.Notes" Color="Color.Inherit" Edge="Edge.Start" aria-label="Toggle drawer" />
             <MudSpacer />
-            <NavLink ActiveClass="d-flex align-center" href="/">
-                <MudImage Src="@(_isDarkMode ? "shift-dark.png" : "shift.png")" Height="16" Class="pe-5" />
-            </NavLink>
+            <a href="/" class="d-flex align-center">
+                <MudImage Src="@LogoSrc" Alt="Shift Software" Height="16" Class="pe-5" />
+            </a>
             <MudSpacer />
-            <MudToggleIconButton @bind-Toggled="_isDarkMode" Icon="@Icons.Material.Filled.WbSunny" Color="@Color.Primary" ToggledIcon="@Icons.Material.Filled.DarkMode" />
+            <MudToggleIconButton @bind-Toggled="_isDarkMode" Icon="@Icons.Material.Filled.WbSunny" Color="@Color.Primary" ToggledIcon="@Icons.Material.Filled.DarkMode" aria-label="Toggle dark mode" />
         </div>
 
         <div style="padding: 8px 28px;" class="d-none d-md-flex align-center flex-grow-1">
-            <NavLink ActiveClass="d-flex align-center me-4" href="/">
-                <MudImage Src="@(_isDarkMode ? "shift-dark.png" : "shift.png")" Height="18" Class="pe-5" />
-            </NavLink>
+            <a href="/" class="d-flex align-center me-4">
+                <MudImage Src="@LogoSrc" Alt="Shift Software" Height="18" Class="pe-5" />
+            </a>
 
-            <MudButton Href="/" Color="Color.Inherit" Variant="Variant.Text" Class="@GetActiveClass(IsActive("/", true))">Home</MudButton>
-            <MudButton Href="/docs" Color="Color.Inherit" Variant="Variant.Text" Class="@GetActiveClass(IsActive("/docs"))">Docs</MudButton>
+            <MudButton Href="/" Color="Color.Inherit" Variant="Variant.Text" Class="@GetActiveClass(IsHomePage)">Home</MudButton>
+            @* Doc pages live under several roots (/docs, /get-started, /concepts, ...), so Docs is active everywhere except Home. *@
+            <MudButton Href="/docs" Color="Color.Inherit" Variant="Variant.Text" Class="@GetActiveClass(!IsHomePage)">Docs</MudButton>
             <MudMenu Color="Color.Inherit" Variant="Variant.Text" Class="mx-1 px-3" PopoverClass="docs-layout-menu-shadow" ListClass="d-flex px-4 pb-2 docs-appbar-special-menu" LockScroll="true" Label="Projects" EndIcon="@Icons.Material.Filled.KeyboardArrowDown" AnchorOrigin="Origin.BottomCenter" TransformOrigin="Origin.TopCenter">
                @*  <MudList T="string">
                     <MudListItem Href="/mud/introduction">
@@ -42,14 +44,14 @@
                         <div class="d-flex">
                             <MudText>Type Auth</MudText>
                         </div>
-                        <MudText Typo="Typo.body2">Role besed authorization.</MudText>
+                        <MudText Typo="Typo.body2">Role-based authorization.</MudText>
                     </MudListItem>
                  </MudList>
             </MudMenu>
 
             <MudSpacer />
 
-            <MudToggleIconButton @bind-Toggled="_isDarkMode" Icon="@Icons.Material.Filled.WbSunny" Color="@Color.Primary" ToggledIcon="@Icons.Material.Filled.DarkMode" />
+            <MudToggleIconButton @bind-Toggled="_isDarkMode" Icon="@Icons.Material.Filled.WbSunny" Color="@Color.Primary" ToggledIcon="@Icons.Material.Filled.DarkMode" aria-label="Toggle dark mode" />
 
         </div>
     </MudAppBar>
@@ -74,11 +76,6 @@
 
 
 <style>
-    .shift-docs .docs-single-link .mud-nav-link,
-    .shift-landingpage .docs-single-link .mud-nav-link {
-        font-weight: 500 !important;
-    }
-
     .docs-appbar-filter {
         z-index: 1301;
         backdrop-filter: blur(12px);
@@ -130,31 +127,43 @@
 </style>
 
 @code {
-    [Parameter]
-    public EventCallback<MouseEventArgs> DrawerToggleCallback { get; set; }
-
     private string GetActiveClass(bool isActive)
     {
         return isActive ? "mud-chip-text mud-chip-color-primary mx-1 px-3" : "mx-1 px-3";
     }
 
-    [Parameter]
-    public bool DisplaySearchBar { get; set; } = true;
+    private string LogoSrc => _isDarkMode ? "shift-dark.png" : "shift.png";
 
     private bool _isDarkMode;
     private bool _drawerOpen = true;
     private MudThemeProvider? _mudThemeProvider;
-    private MudTheme _theme = new()
+    // Brand yellow (#F8CA4D) is unreadable as text on white (~1.6:1), and MudBlazor
+    // uses Primary as a text color for links, the active nav item and icons. The
+    // light palette therefore uses a darker gold of the same hue, and darkens the
+    // semantic colors so callout text and status chips pass WCAG AA. The dark palette
+    // keeps brand yellow but switches contrast text to dark, since white on yellow
+    // is unreadable too.
+    private readonly MudTheme _theme = new()
     {
         PaletteLight = new PaletteLight()
         {
-            Primary = "rgba(248, 202, 77, 1)",
-            White = "rgba(255, 255, 255, 1)",
+            Primary = "#8A6500",
+            PrimaryContrastText = "#FFFFFF",
+            Info = "#1976D2",
+            Success = "#2E7D32",
+            Warning = "#C05600",
+            Error = "#D32F2F",
+            AppbarBackground = "rgba(255, 255, 255, 0.8)",
         },
         PaletteDark = new PaletteDark()
         {
-            Primary = "rgba(248, 202, 77, 1)",
-            White = "rgba(255, 255, 255, 1)",
+            Primary = "#F8CA4D",
+            PrimaryContrastText = "rgba(0, 0, 0, 0.87)",
+            InfoContrastText = "rgba(0, 0, 0, 0.87)",
+            SuccessContrastText = "rgba(0, 0, 0, 0.87)",
+            WarningContrastText = "rgba(0, 0, 0, 0.87)",
+            ErrorContrastText = "rgba(0, 0, 0, 0.87)",
+            AppbarBackground = "rgba(50, 51, 61, 0.8)",
         },
     };
 
@@ -171,28 +180,6 @@
         await JS.InvokeVoidAsync("setPrismDarkTheme", _isDarkMode);
     }
 
-    private Task OnSystemDarkModeChanged(bool newValue)
-    {
-        _isDarkMode = newValue;
-        StateHasChanged();
-        return Task.CompletedTask;
-    }
-
     private bool IsHomePage =>
     string.IsNullOrEmpty(NavigationManager.ToBaseRelativePath(NavigationManager.Uri).TrimEnd('/'));
-
-    private bool IsActive(string href, bool exact = false)
-    {
-        var uri = NavigationManager.Uri;
-        var relativePath = NavigationManager.ToBaseRelativePath(uri).TrimEnd('/');
-
-        href = href.TrimStart('/');
-
-        if (exact)
-        {
-            return string.Equals(relativePath, href, StringComparison.OrdinalIgnoreCase);
-        }
-
-        return relativePath.StartsWith(href, StringComparison.OrdinalIgnoreCase);
-    }
 }
