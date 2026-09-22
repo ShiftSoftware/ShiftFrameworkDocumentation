@@ -13,6 +13,7 @@
 
 		<PackageReference Include="ShiftSoftware.ShiftEntity.EFCore" Version="$(ShiftFrameworkVersion)" />
 		<PackageReference Include="ShiftSoftware.ShiftEntity.Print" Version="$(ShiftFrameworkVersion)" />
+		<PackageReference Include="ShiftSoftware.ShiftMapper" Version="$(ShiftMapperVersion)" />
 
 	</ItemGroup>
 
@@ -23,12 +24,13 @@
 		<ProjectReference Include="..\..\ShiftEntity\ShiftEntity.EFCore\ShiftEntity.EFCore.csproj" Condition="Exists('..\..\ShiftEntity\ShiftEntity.EFCore\ShiftEntity.EFCore.csproj')" />
 		<ProjectReference Include="..\..\ShiftEntity\ShiftEntity.Print\ShiftEntity.Print.csproj" Condition="Exists('..\..\ShiftEntity\ShiftEntity.Print\ShiftEntity.Print.csproj')" />
 
-		<!-- The mapper source generator. In package mode it arrives as an analyzer inside the ShiftEntity
-		     package; in development mode the ProjectReferences above take the place of those packages, which
-		     drops the analyzer along with them - so it has to be named explicitly here, exactly as
-		     StockPlusPlus.Data and ShiftIdentity.Data do. Without it these repositories have no mapper at all
-		     (neither configures one), and startup validation fails. -->
-		<ProjectReference Include="..\..\ShiftEntity\ShiftEntity.SourceGenerator\ShiftEntity.SourceGenerator.csproj" Condition="Exists('..\..\ShiftEntity\ShiftEntity.SourceGenerator\ShiftEntity.SourceGenerator.csproj')" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+		<ProjectReference Include="..\..\ShiftMapper\ShiftMapper\ShiftMapper.csproj" Condition="Exists('..\..\ShiftMapper\ShiftMapper\ShiftMapper.csproj')" />
+
+		<!-- The ShiftMapper source generator. In package mode it ships inside the ShiftSoftware.ShiftMapper
+		     package; in development mode the ProjectReferences take the place of those packages, which drops
+		     the analyzer along with them - so it has to be named explicitly here, exactly as StockPlusPlus.Data
+		     does. Without it these repositories have no generated maps, and startup validation fails. -->
+		<ProjectReference Include="..\..\ShiftMapper\ShiftMapper.Generator\ShiftMapper.Generator.csproj" Condition="Exists('..\..\ShiftMapper\ShiftMapper.Generator\ShiftMapper.Generator.csproj')" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
 	</ItemGroup>
 
 </Project>
