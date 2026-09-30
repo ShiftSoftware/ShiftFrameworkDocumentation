@@ -1,0 +1,30 @@
+@using Docs.Shared.Customers
+
+<ShiftEntityForm @bind-Value="_customer"
+                 @bind-Key="_key"
+                 Endpoint="Customer"
+                 Title="Customer"
+                 TypeAuthAction="null">
+
+    <MudStack Row AlignItems="AlignItems.Center" Class="mb-2">
+        <MudChip T="string" Color="Color.Info">Mode: @context.Mode</MudChip>
+        <MudChip T="string" Color="@(context.ReadOnly ? Color.Default : Color.Success)">
+            @(context.ReadOnly ? "Read-only" : "Editable")
+        </MudChip>
+    </MudStack>
+
+    <MudTextFieldExtended Label="Name"
+                          @bind-Value="context.Item.Name"
+                          For="@(() => context.Item.Name)" />
+
+    @if (!context.ReadOnly)
+    {
+        <MudText Typo="Typo.caption">Only shown while editing: @(context.Item.Name?.Length ?? 0) characters.</MudText>
+    }
+
+</ShiftEntityForm>
+
+@code {
+    private object? _key = "2";
+    private CustomerDTO _customer = new();
+}

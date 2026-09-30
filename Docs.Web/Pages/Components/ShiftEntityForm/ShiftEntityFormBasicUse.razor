@@ -1,0 +1,18 @@
+@using Docs.Shared.Customers
+
+<ShiftEntityForm @bind-Value="_customer"
+                 @bind-Key="_key"
+                 Endpoint="Customer"
+                 Title="Customer"
+                 TypeAuthAction="null">
+
+    <MudTextFieldExtended Label="Name"
+                          @bind-Value="context.Item.Name"
+                          For="@(() => context.Item.Name)" />
+
+</ShiftEntityForm>
+
+@code {
+    private object? _key = "1";
+    private CustomerDTO _customer = new();
+}
