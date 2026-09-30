@@ -20,23 +20,14 @@
     <p>
         Open <code>YourApp.API/appsettings.Development.json</code>. The template ships
         with a connection string pointing at <code>localhost\sqlexpress</code> — that
-        won't exist on most machines. Change both <code>SQLServer</code> and
-        <code>LiveIdentitySQLServer</code> to point at whatever SQL Server you actually
-        have running.
+        won't exist on most machines. Change <code>SQLServer</code> to point at
+        whatever SQL Server you actually have running.
     </p>
 
     <p>For LocalDB, the connection string looks like this:</p>
     <pre><code class="language-json">"ConnectionStrings": {
-  "SQLServer": "Server=(localdb)\\MSSQLLocalDB;Database=MyFirstShiftApp;Integrated Security=True;TrustServerCertificate=True;",
-  "LiveIdentitySQLServer": "Server=(localdb)\\MSSQLLocalDB;Database=MyFirstShiftApp;Integrated Security=True;TrustServerCertificate=True;"
+  "SQLServer": "Server=(localdb)\\MSSQLLocalDB;Database=MyFirstShiftApp;Integrated Security=True;TrustServerCertificate=True;"
 }</code></pre>
-
-    <DocCallout Type="DocCalloutType.Note">
-        Both connection strings can point at the same database for development. In
-        production, <code>LiveIdentitySQLServer</code> typically points at a separate
-        identity database — but you can ignore that distinction until you actually
-        need it.
-    </DocCallout>
 </DocSection>
 
 <DocSection Title="Step 2: Create the initial migration">
@@ -51,10 +42,8 @@
     <DocSnippet Name="CreateInitialMigration" Language="bash" />
 
     <p>
-        The <code>--context DB</code> flag is required because the project defines
-        more than one <code>DbContext</code> (the app's main <code>DB</code> context
-        and a separate one used only by Cosmos replication). Without specifying which
-        one, the EF tools will refuse to proceed.
+        The project has a single <code>DbContext</code>, <code>DB</code>, so
+        <code>--context DB</code> is optional; it is spelled out here only to be explicit.
     </p>
 
     <DocCallout Type="DocCalloutType.Tip">
@@ -115,12 +104,6 @@
         Double-check that the server name matches exactly what your SQL setup uses.
         For LocalDB, run <code>sqllocaldb info</code> in a terminal to confirm the
         instance name.
-    </p>
-
-    <h3>More than one DbContext was found</h3>
-    <p>
-        You forgot the <code>--context DB</code> flag in Step 2 or Step 3. The EF
-        tools can't guess which context you mean when there are multiple registered.
     </p>
 
     <h3>Invalid object name 'ShiftIdentity.Countries'</h3>

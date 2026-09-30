@@ -71,7 +71,6 @@ cd MyFirstShiftApp
 # Override the default connection string to point at LocalDB. The template ships
 # pointing at localhost\sqlexpress which doesn't exist on most machines.
 export ConnectionStrings__SQLServer="${CONNSTR}"
-export ConnectionStrings__LiveIdentitySQLServer="${CONNSTR}"
 
 # Force Development environment so appsettings.Development.json (which contains
 # the TokenSettings, etc.) actually loads. The template ships only Development
