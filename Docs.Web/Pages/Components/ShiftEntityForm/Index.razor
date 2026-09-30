@@ -1,0 +1,152 @@
+@page "/components/shift-entity-form"
+
+@using ShiftSoftware.ShiftBlazor.Components
+
+<DocPageMeta Title="ShiftEntityForm"
+             Section="Components"
+             Order="20"
+             Status="DocPageStatus.Draft"
+             Description="Load, create, edit and delete one Shift Entity record from its endpoint, with modes, validation, permissions and the form context."
+             Keywords="ShiftEntityForm,form,crud,edit,create,view,mode,context,FormChildContext,TypeAuthAction,OnSaveAction,ShiftForm,TheItem" />
+
+<DocSection Title="What ShiftEntityForm does">
+    <p>
+        <code>ShiftEntityForm</code> is a form bound to <b>one record</b> of a Shift Entity endpoint.
+        You give it the endpoint and, optionally, the record's key; it does the HTTP work and draws the
+        header, toolbar and Save button around the fields you put inside it.
+    </p>
+    <ul>
+        <li><b>With a <code>Key</code></b> it loads the record with <code>GET {Endpoint}/{Key}</code> and opens in <b>View</b> mode.</li>
+        <li><b>Without a <code>Key</code></b> it switches itself to <b>Create</b> mode and saves with <code>POST {Endpoint}</code>.</li>
+        <li><b>Edit</b> then <b>Save</b> sends <code>PUT {Endpoint}/{Key}</code> with the form's current item as the body.</li>
+        <li><b>Delete</b> sends <code>DELETE {Endpoint}/{Key}</code>. Print and View Revisions buttons are available too.</li>
+    </ul>
+    <p>
+        <code>Endpoint</code> is required: the form throws <code>ArgumentNullException</code> without it. The URL is
+        the configured base address (or <code>BaseUrl</code> / <code>BaseUrlKey</code>) plus <code>Endpoint</code>.
+    </p>
+    <DocCallout Type="DocCalloutType.Note" Title="Live examples">
+        The examples on this page run against this site's demo API. Its data lives in memory and is shared by
+        everyone reading the page, and it resets when the site restarts.
+    </DocCallout>
+</DocSection>
+
+<DocComponentVariant Title="Load and edit a record" Linehighlight="3-7,10-12" DocComponent="@typeof(ShiftEntityFormBasicUse)">
+    <p class="mt-4">
+        Bind the item with <code>@@bind-Value</code> and the key with <code>@@bind-Key</code>, set the
+        <code>Endpoint</code>, and place the fields inside the form. The fields read and write
+        <code>context.Item</code>: the record this form loaded. The form opens in View mode (read-only);
+        press <b>Edit</b> to change the name, then <b>Save</b>.
+    </p>
+</DocComponentVariant>
+
+<DocComponentVariant Title="Create a record" Linehighlight="8" DocComponent="@typeof(ShiftEntityFormCreate)">
+    <p class="mt-4">
+        Leave out the key and the form opens in <b>Create</b> mode. Validation comes from the DTO's data
+        annotations: <code>Name</code> and <code>AvatarIcon</code> are <code>[Required]</code> on
+        <code>CustomerDTO</code>, so the <b>Create</b> button (the Save button in Create mode) shows an error on
+        each empty field and sends nothing until both are filled.
+    </p>
+    <p>
+        What happens after a successful save is decided by <code>OnSaveAction</code>:
+    </p>
+    <ul>
+        <li><code>ViewFormOnSave</code> (the default): shows a success message, switches to View mode and shows the saved record.
+            After a <b>create</b> on a routed page it also appends the new key to the browser URL, so the page's route
+            should accept it (for example <code>/CustomerForm/{Key?}</code>). Inside a modal it updates the modal's key instead.</li>
+        <li><code>ResetFormOnSave</code>: clears the form to a new item, ready for the next one. This example uses it,
+            because this page has no route for the new key.</li>
+        <li><code>CloseFormOnSave</code>: closes the form when it is open in a modal.</li>
+    </ul>
+    <DocCallout Type="DocCalloutType.Warning" Title="The user's setting wins">
+        The form reads <code>SettingManager.Settings.FormOnSaveAction</code> first, then the
+        <code>OnSaveAction</code> parameter, then the default. A user who chose a save action in their settings
+        overrides the parameter.
+    </DocCallout>
+</DocComponentVariant>
+
+<DocSection Title="Modes">
+    <p>The form is always in one of four <code>FormModes</code>:</p>
+    <ul>
+        <li><code>View</code>: showing a loaded record, read-only.</li>
+        <li><code>Archive</code>: showing a past revision, read-only.</li>
+        <li><code>Edit</code>: changing a loaded record.</li>
+        <li><code>Create</code>: entering a new record.</li>
+    </ul>
+    <p>
+        <code>ReadOnly</code> means the mode is below <code>Edit</code>, that is View or Archive. You can pass
+        <code>Mode</code> in and follow its changes with <code>@@bind-Mode</code>.
+    </p>
+</DocSection>
+
+<DocComponentVariant Title="Use the form context" Linehighlight="9-12,18-21" DocComponent="@typeof(ShiftEntityFormContext)">
+    <p class="mt-4">
+        Everything inside the form receives a <code>context</code> of type
+        <code>FormChildContext&lt;T&gt;</code> that describes <b>this</b> form:
+    </p>
+    <ul>
+        <li><code>context.Item</code>: the record the form holds (its <code>Value</code>).</li>
+        <li><code>context.Mode</code>, <code>context.ReadOnly</code>, <code>context.Disabled</code>: the form's mode, whether it is read-only, and whether a task such as saving is in progress.</li>
+        <li><code>context.Embedded</code>: whether the form is shown read-only inside another form.</li>
+        <li><code>context.SetMode(...)</code>, <code>context.Validate()</code>, <code>context.ShowAlert(...)</code>, <code>context.CloseModal()</code>: act on the form from your fields.</li>
+    </ul>
+    <p>
+        Press <b>Edit</b> in this example: the chips and the extra line follow the form's own mode.
+    </p>
+</DocComponentVariant>
+
+<DocSection Title="Permissions">
+    <p>
+        Set <code>TypeAuthAction</code> to the entity's TypeAuth action (a <code>ReadWriteDeleteAction</code>).
+        The form then checks the signed-in user's access: without Read it does not load the record, without Write
+        the Edit button is hidden, and without Delete the Delete button is hidden.
+        <code>TypeAuthAction="null"</code>, as in the examples above, allows everything.
+    </p>
+    <DocCodeBlock Language="razor" Code="@(@"<ShiftEntityForm @bind-Value=""_item""
+                 @bind-Key=""Key""
+                 Endpoint=""Car""
+                 TypeAuthAction=""StockPlusPlusActionTree.Car"">
+    ...
+</ShiftEntityForm>")" />
+    <DocCallout Type="DocCalloutType.Danger" Title="Hiding a button is not security">
+        <code>TypeAuthAction</code> only changes what the form shows. Anyone can still call the API directly, so the
+        controller must enforce the same action: pass it to the secure controller's base constructor
+        (<code>base(StockPlusPlusActionTree.Car)</code>). With <code>base(null)</code> every API check is skipped.
+    </DocCallout>
+</DocSection>
+
+<DocSection Title="Migrating from ShiftForm">
+    <DocCallout Type="DocCalloutType.Warning" Title="@("ShiftForm<TComponent, T> is obsolete")">
+        Older pages inherit <code>ShiftForm&lt;TComponent, T&gt;</code> and bind the form to the page's
+        <code>TheItem</code>, <code>Mode</code> and <code>FormContainer</code>. A page has only one of each, so two
+        forms on the same page share one record: both show whichever loaded last, Edit in one switches both, and
+        saving one can write the other record under its own key. <code>ShiftForm</code> also drops cascading
+        parameters, which includes <code>[SupplyParameterFromQuery]</code>.
+    </DocCallout>
+    <p>To migrate a page:</p>
+    <ol>
+        <li>Remove the <code>@@inherits ShiftForm&lt;...&gt;</code> line.</li>
+        <li>Add <code>[Parameter] public object? Key { get; set; }</code> and a private field for the item.</li>
+        <li>Bind them on the form with <code>@@bind-Key</code> and <code>@@bind-Value</code>.</li>
+        <li>Replace <code>TheItem.X</code>, <code>Mode</code>, <code>ReadOnly</code> and <code>Disabled</code> with
+            <code>context.Item.X</code>, <code>context.Mode</code>, <code>context.ReadOnly</code> and <code>context.Disabled</code>.</li>
+    </ol>
+    <DocCodeBlock Language="razor" Code="@(@"@* Before *@
+@inherits ShiftForm<CustomerForm, CustomerDTO>
+
+<ShiftEntityForm @bind-Value=""TheItem"" @bind-Mode=""Mode"" @ref=""FormContainer"" Endpoint=""Customer"">
+    <MudTextFieldExtended @bind-Value=""TheItem.Name"" For=""@(() => TheItem.Name)"" />
+</ShiftEntityForm>
+
+@* After *@
+<ShiftEntityForm @bind-Value=""_item"" @bind-Key=""Key"" Endpoint=""Customer"">
+    <MudTextFieldExtended @bind-Value=""context.Item.Name"" For=""@(() => context.Item.Name)"" />
+</ShiftEntityForm>
+
+@code {
+    [Parameter] public object? Key { get; set; }
+    private CustomerDTO _item = new();
+}")" />
+</DocSection>
+
+<AutoComponentDocs Title="ShiftEntityForm parameters" ComponentType="typeof(ShiftEntityForm<>)" />
