@@ -1,0 +1,135 @@
+@page "/guides/javascript-token-client"
+
+<DocPageMeta Title="JavaScript token client"
+             Section="Guides"
+             Order="40"
+             Status="DocPageStatus.Draft"
+             Description="Keep a plain browser page signed in to ShiftIdentity: load the token client that ShiftIdentity.Blazor ships, ask it for a token before every request, and save or clear the session."
+             Keywords="token client,javascript,shiftidentity,access token,refresh token,acquiretoken,sign in,sign out,localstorage,es5,static web assets" />
+
+<DocSection Title="What it does">
+    <p>
+        <code>ShiftIdentity.TokenClient</code> is a small JavaScript library for pages that are not Blazor
+        components, for example a plain HTML page or a screen on an old TV browser. It keeps the session in the
+        browser and hands out an access token. When the token is close to expiry, it renews the session through
+        <code>POST /api/identity/v2/refresh</code> first. It runs one renewal at a time, has no background timer,
+        and never navigates. It is plain ES5 with no dependencies.
+    </p>
+
+    <DocCallout Type="DocCalloutType.Note">
+        The two files ship as static web assets of the <code>ShiftSoftware.ShiftIdentity.Blazor</code> package,
+        from the first framework release after 2026.10.10.1.
+    </DocCallout>
+</DocSection>
+
+<DocSection Title="Load the scripts">
+    <p>
+        An app that references <code>ShiftSoftware.ShiftIdentity.Blazor</code> serves both files. Load the core
+        first, then the ShiftIdentity v2 adapter. Both attach to <code>window.ShiftIdentity</code>.
+    </p>
+
+    <DocCodeBlock Language="html" Code="@(@"<script src=""_content/ShiftSoftware.ShiftIdentity.Blazor/clients/shiftidentity-tokenclient.js""></script>
+<script src=""_content/ShiftSoftware.ShiftIdentity.Blazor/clients/shiftidentity-tokenclient-issuer-v2.js""></script>")" />
+</DocSection>
+
+<DocSection Title="Use it in three steps">
+    <p>
+        Keep all token client code in one small object, as below. The rest of the page then asks it for a token
+        and never touches the session itself.
+    </p>
+
+    <DocCodeBlock Language="javascript" Code="@(@"var AppSession = (function () {
+    var store, issuer, client;
+
+    // 1. Create one client: a store where the session is kept, and the Identity service that renews it.
+    function start(identityOrigin) {
+        var TokenClient = ShiftIdentity.TokenClient;
+        store = TokenClient.localStorageStore('my-app.session');
+        issuer = TokenClient.issuers.shiftIdentityV2({ baseUrl: identityOrigin });
+        client = new TokenClient({ store: store, issuer: issuer });
+    }
+
+    // 2. Ask for a token before every API request. Exactly one handler is called.
+    function getToken(handlers) {
+        client.acquireToken(function (error, outcome) {
+            if (error) {
+                // Only a bug or broken browser storage gets here. Treat it like an outage.
+                handlers.unavailable(30, error);
+                return;
+            }
+            switch (outcome.kind) {
+                case 'tokenAvailable': handlers.token(outcome.token); break;
+                case 'signInRequired': handlers.signInRequired(outcome.reason); break;
+                case 'temporarilyUnavailable': handlers.unavailable(outcome.retryAfter); break;
+            }
+        });
+    }
+
+    // 3a. After a sign-in, save the session. tokenDto is the session of a ShiftIdentity v2 answer.
+    function save(tokenDto, callback) {
+        var session;
+        try {
+            session = issuer.sessionFromToken(tokenDto);
+        } catch (notASession) {
+            callback(notASession);
+            return;
+        }
+        // Clear first. A renewal of the old session that is still running is then dropped.
+        client.clear(function (error) {
+            if (error) { callback(error); return; }
+            store.write(session, callback);
+        });
+    }
+
+    // 3b. Sign out on this device.
+    function clear(callback) {
+        client.clear(callback);
+    }
+
+    return { start: start, getToken: getToken, save: save, clear: clear };
+})();")" />
+
+    <p><code>acquireToken</code> always answers with one of three outcomes:</p>
+    <ul>
+        <li>
+            <b><code>tokenAvailable</code></b>: send <code>Authorization: Bearer</code> with <code>outcome.token</code>.
+            The client renews the session first when less than 60 seconds are left. While the Identity service
+            cannot be reached, it still hands out the current token until that token expires.
+        </li>
+        <li>
+            <b><code>signInRequired</code></b>: there is no session, the refresh token has expired,
+            <code>clear()</code> was called, or the Identity service refused the session (for example a
+            deactivated user). After a refusal the store is already empty. The page decides how to sign in again.
+        </li>
+        <li>
+            <b><code>temporarilyUnavailable</code></b>: the Identity service did not answer and the access token
+            has expired. The session is kept. The client does not call the service again for
+            <code>outcome.retryAfter</code> seconds.
+        </li>
+    </ul>
+
+    <p>
+        Every method takes a callback <code>function (error, outcome)</code>, and also returns a Promise where
+        <code>Promise</code> exists. The error is only for programmer errors, such as a store that fails.
+        Because there is no timer, a page that polls its API stays signed in by calling <code>getToken</code>
+        before each poll.
+    </p>
+</DocSection>
+
+<DocSection Title="When the page is on another origin">
+    <p>
+        <code>baseUrl</code> is the Identity service's address. Use <code>''</code> when the page is served from
+        the same origin. When it is not, the Identity API needs CORS for a JSON <code>POST</code> from the page's
+        origin. To let the client read <code>Retry-After</code> on such answers, the API must also send
+        <code>Access-Control-Expose-Headers: Retry-After</code>.
+    </p>
+</DocSection>
+
+<DocSection Title="Reference">
+    <p>
+        The options, the store, adapter and transport contracts, and how each v2 answer maps to an outcome are in
+        the client's
+        <a href="https://github.com/ShiftSoftware/ShiftIdentity/blob/master/clients/javascript/README.md" target="_blank">README</a>
+        in the ShiftIdentity repository.
+    </p>
+</DocSection>
