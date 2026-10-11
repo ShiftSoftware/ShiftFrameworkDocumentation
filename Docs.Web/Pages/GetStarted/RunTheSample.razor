@@ -3,9 +3,10 @@
 <DocPageMeta Title="Run the generated sample"
              Section="Get Started"
              Order="50"
-             Status="DocPageStatus.Draft"
+             Status="DocPageStatus.Reviewed"
+             TestedAgainst="2026.10.10.2"
              Description="Bring the scaffolded app up end-to-end with a database, migrations, and a running API."
-             Keywords="run,migrations,localdb,sql server,connection string,first run,seed,dotnet ef" />
+             Keywords="run,migrations,localdb,sql server,connection string,first run,seed,dotnet ef,cosmos,emulator" />
 
 <DocSection Title="Before you start">
     <p>This page assumes you've already:</p>
@@ -25,9 +26,18 @@
     </p>
 
     <p>For LocalDB, the connection string looks like this:</p>
-    <pre><code class="language-json">"ConnectionStrings": {
-  "SQLServer": "Server=(localdb)\\MSSQLLocalDB;Database=MyFirstShiftApp;Integrated Security=True;TrustServerCertificate=True;"
-}</code></pre>
+    <DocSnippet Name="LocalDbConnectionString" Language="json" />
+
+    <h3>Cosmos DB: switch it off unless the emulator is running</h3>
+    <p>
+        The same file also has <code>"CosmosDb": { "Enabled": true }</code>. With it on,
+        the app copies some records to Cosmos DB, which in development means the
+        <b>Azure Cosmos DB Emulator</b> on <code>localhost:8081</code>. If the emulator isn't
+        running, the app still works — but the console shows red <code>fail:</code> lines
+        such as <code>CosmosDB Syncing Failed … (localhost:8081)</code>. Unless you're trying
+        out Cosmos replication, switch it off in the same file:
+    </p>
+    <DocSnippet Name="DisableCosmos" Language="json" />
 </DocSection>
 
 <DocSection Title="Step 2: Create the initial migration">
@@ -72,16 +82,16 @@
     <p>On first run, the API does several things in order:</p>
     <ol>
         <li>Connects to the database you configured in Step 1.</li>
-        <li>Verifies migrations are up to date.</li>
-        <li>Runs the seed routine — creates a default country (<code>IQ</code>), region (<code>KRG</code>), company (<code>SFT</code>), and an initial admin user.</li>
-        <li>Starts listening on the port from <code>launchSettings.json</code> (typically 5069 in development, varies per scaffold).</li>
+        <li>Runs the seed routine — creates a default country (<code>IQ</code>), region (<code>KRG</code>), company (<code>SFT</code>), and an initial admin user. The seed expects the tables from Step 3; it does not create or migrate the database itself.</li>
+        <li>Starts listening on the port from <code>YourApp.API/Properties/launchSettings.json</code>. The template picks a random free port between 5000 and 5300 when it scaffolds the project, so yours will differ from the examples here.</li>
     </ol>
 </DocSection>
 
 <DocSection Title="Step 5: Open the app">
     <p>
-        Look at the console output for a line like <code>Now listening on: http://localhost:5069</code> —
-        that's the URL to open in your browser. The Blazor WebAssembly bundle loads from there.
+        Look at the console output for a line like <code>Now listening on: http://localhost:5089</code>
+        (with your project's port) — that's the URL to open in your browser. The Blazor
+        WebAssembly bundle loads from there and shows the login page.
     </p>
 
     <p>The default admin credentials seeded by the template are:</p>
@@ -106,6 +116,13 @@
         instance name.
     </p>
 
+    <h3>fail: … CosmosDB Syncing Failed … (localhost:8081)</h3>
+    <p>
+        Cosmos DB is switched on but the emulator isn't running. The app keeps working;
+        switch Cosmos off as shown in Step 1, or start the Azure Cosmos DB Emulator
+        (it does not start with Windows on its own).
+    </p>
+
     <h3>Invalid object name 'ShiftIdentity.Countries'</h3>
     <p>
         You skipped Step 2 (creating the initial migration). The schema is empty so
@@ -113,10 +130,11 @@
         <code>dotnet ef migrations add InitialCreate --context DB ...</code> and try again.
     </p>
 
-    <h3>Token public key cannot be null</h3>
+    <h3>Value cannot be null. (Parameter 's') — at startup, in AddShiftIdentity</h3>
     <p>
         The API was started without the <code>Development</code> environment, so
-        <code>appsettings.Development.json</code> never loaded. Make sure
+        <code>appsettings.Development.json</code> never loaded and the identity token key
+        is missing. Make sure
         <code>ASPNETCORE_ENVIRONMENT=Development</code> is set, or run via Visual
         Studio / <code>dotnet run</code> from the project directory (both load the
         Development profile by default).
