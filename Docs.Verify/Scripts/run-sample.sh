@@ -74,9 +74,9 @@ JSON
 
 THIS_SCRIPT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/$(basename "${BASH_SOURCE[0]}")"
 
-# Read a snippet's body back out of this file.
+# Read a snippet's body back out of this file (without CRs, so a CRLF checkout works).
 snippet_body() {
-    sed -n "/# snippet:$1\$/,/# endsnippet/p" "$THIS_SCRIPT" | sed '1d;$d'
+    tr -d '\r' < "$THIS_SCRIPT" | sed -n "/# snippet:$1\$/,/# endsnippet/p" | sed '1d;$d'
 }
 
 DB_NAME="MyFirstShiftAppVerify_$(date +%s)"
