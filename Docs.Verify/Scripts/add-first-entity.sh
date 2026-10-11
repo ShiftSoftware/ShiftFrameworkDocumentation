@@ -92,8 +92,8 @@ CODE
 }
 
 THIS_SCRIPT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/$(basename "${BASH_SOURCE[0]}")"
-snippet_body() {
-    sed -n "/# snippet:$1\$/,/# endsnippet/p" "$THIS_SCRIPT" | sed '1d;$d'
+snippet_body() {  # without CRs, so a CRLF checkout works
+    tr -d '\r' < "$THIS_SCRIPT" | sed -n "/# snippet:$1\$/,/# endsnippet/p" | sed '1d;$d'
 }
 
 DB_NAME="MyFirstShiftAppEntityVerify_$(date +%s)"
