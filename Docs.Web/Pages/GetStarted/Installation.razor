@@ -4,7 +4,7 @@
              Section="Get Started"
              Order="20"
              Status="DocPageStatus.Reviewed"
-             TestedAgainst="2026.09.08.3"
+             TestedAgainst="2026.10.12.1"
              Description="Install prerequisites, the dotnet new template, and scaffold your first Shift Framework project."
              Keywords="install,setup,prerequisites,dotnet new shift,template,sql server" />
 
@@ -13,7 +13,7 @@
     <ul>
         <li><b>.NET 10 SDK</b> or later — <MudLink Href="https://dotnet.microsoft.com/download" Target="_blank">download</MudLink>.</li>
         <li><b>SQL Server</b> — LocalDB or Express is fine for development. Production apps typically run against full SQL Server or Azure SQL.</li>
-        <li>An IDE: <b>Visual Studio 2022+</b>, <b>JetBrains Rider</b>, or <b>VS Code</b> with the C# Dev Kit.</li>
+        <li>An IDE: <b>Visual Studio 2026+</b> (earlier versions don't support .NET 10), <b>JetBrains Rider</b>, or <b>VS Code</b> with the C# Dev Kit.</li>
     </ul>
 
     <p>You can verify your .NET SDK version with:</p>
@@ -24,7 +24,7 @@
     </DocCallout>
 
     <ul>
-        <li><b>Azure Cosmos DB Emulator</b> — only if you plan to use Cosmos replication.</li>
+        <li><b>Azure Cosmos DB Emulator</b> — only if you plan to use Cosmos replication. A new project has it switched on; <MudLink Href="/get-started/run-the-sample">Run the generated sample</MudLink> shows how to switch it off.</li>
         <li><b>Azure Functions Core Tools</b> — only if your project includes the optional Functions project.</li>
         <li><b>Azurite</b> — local emulator for Azure Storage, used by file upload features in development.</li>
     </ul>
@@ -47,8 +47,9 @@
     <DocSnippet Name="VerifyTemplateInstalled" Language="bash" />
 
     <DocCallout Type="DocCalloutType.Tip">
-        To upgrade the template later, run the same install command with an
-        <code>@@*</code> suffix — that forces the latest version.
+        To upgrade the template later, run the same install command again — it
+        replaces an older version with the latest one. You can also ask for the
+        latest explicitly with an <code>@@*</code> suffix:
     </DocCallout>
 
     <DocSnippet Name="UpgradeTemplate" Language="bash" />
@@ -90,19 +91,27 @@
     <DocSnippet Name="BuildProject" Language="bash" />
 
     <p>
-        A clean build means the template, all NuGet packages, and your local SDK
-        are aligned. If you see errors at this stage, they are almost always one of:
+        A build with <b>0 errors</b> means the template, all NuGet packages, and your
+        local SDK are aligned. If you see errors at this stage, they are almost always one of:
     </p>
     <ul>
         <li>An older .NET SDK — confirm with <code>dotnet --version</code> that you're on .NET 10 or newer.</li>
         <li>NuGet feed issues — check <code>nuget.config</code> for any private feeds your machine can't reach.</li>
-        <li>A previous template install pinned to an older version — reinstall with the <code>@@*</code> suffix shown above.</li>
+        <li>An older template version — run the install command again, as shown above.</li>
     </ul>
+
+    <DocCallout Type="DocCalloutType.Note">
+        Warnings are expected. A freshly scaffolded project builds with a few dozen
+        warnings, mostly <code>SM00xx</code> notes from ShiftMapper about maps that
+        <code>ProjectTo</code> can't turn into SQL. They don't stop the app from
+        running — only errors do.
+    </DocCallout>
 
     <DocCallout Type="DocCalloutType.Warning">
         Do <b>not</b> run the app yet. The generated project expects a database that
-        doesn't exist until you run migrations. The next page covers running the
-        sample end-to-end, including the database setup.
+        doesn't exist until you run migrations.
+        <MudLink Href="/get-started/run-the-sample">Run the generated sample</MudLink>
+        covers running it end-to-end, including the database setup.
     </DocCallout>
 </DocSection>
 

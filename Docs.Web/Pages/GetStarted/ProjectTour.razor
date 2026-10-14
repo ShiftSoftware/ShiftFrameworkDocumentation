@@ -3,31 +3,35 @@
 <DocPageMeta Title="Project tour"
              Section="Get Started"
              Order="40"
-             Status="DocPageStatus.Draft"
+             Status="DocPageStatus.Reviewed"
+             TestedAgainst="2026.10.12.1"
              Description="What each project in a generated Shift Framework solution does, and how the pieces fit together."
              Keywords="project,structure,architecture,api,data,shared,web,functions,test,layers" />
 
 <DocSection Title="Solution layout">
     <p>
         A Shift Framework project generated with default options is a four-project
-        solution. Each project has a single, clear responsibility and depends only
-        on the projects below it in the stack:
+        solution. Each project has a single, clear responsibility. The tree shows
+        which project references which:
     </p>
-    <pre><code>YourApp.Web      ← Blazor WebAssembly frontend
-    │
-YourApp.API      ← ASP.NET Core API host (also serves the Blazor bundle in dev)
-    │
-YourApp.Data     ← EF Core entities, repositories, mappers, migrations
-    │
-YourApp.Shared   ← DTOs, enums, action trees (shared between API and Web)</code></pre>
+    <pre><code>YourApp.API          ← ASP.NET Core host: the API, and it serves the Web app
+ ├── YourApp.Web      ← Blazor WebAssembly frontend
+ │    └── YourApp.Shared
+ └── YourApp.Data     ← EF Core entities, repositories, mappers, migrations
+      └── YourApp.Shared   ← DTOs, enums, action trees, localization</code></pre>
 
     <p>
-        The dependency arrows always point downward — <b>Web</b> can reference
-        <b>Shared</b>, but <b>Shared</b> cannot reference <b>Web</b>. This is what
-        keeps the API and the frontend able to share types without creating circular
-        builds. If you opted into <code>--addFunctions</code> or <code>--addTest</code>,
-        you'll also see <code>YourApp.Functions</code> and <code>YourApp.Test</code>
-        sitting alongside the API.
+        <b>Shared</b> is at the bottom: both <b>Web</b> and <b>Data</b> reference it,
+        and it references nothing. That is what lets the API and the frontend share
+        types without circular builds. <b>Web</b> and <b>Data</b> never reference each
+        other — the browser only reaches the database through the API. <b>API</b> is at
+        the top because it hosts everything: it references <b>Data</b> for the database
+        and <b>Web</b> so it can serve the Blazor app.
+    </p>
+    <p>
+        If you opted into <code>--addFunctions</code> or <code>--addTest</code>, you'll also
+        see <code>YourApp.Functions</code> and <code>YourApp.Test</code> next to the API
+        (see <b>Optional projects</b> below).
     </p>
 </DocSection>
 
@@ -37,9 +41,10 @@ YourApp.Shared   ← DTOs, enums, action trees (shared between API and Web)</cod
         to be visible to <b>both</b> the server and the Blazor client:
     </p>
     <ul>
-        <li><b>DTOs</b> — the View / List / Upsert triad for each entity. These are the shapes that travel over the wire between the API and the frontend.</li>
-        <li><b>Enums</b> — domain enums that show up in DTOs (e.g. <code>OrderStatus</code>, <code>PaymentMethod</code>).</li>
-        <li><b>Action trees</b> — TypeAuth permission definitions. The same tree drives <code>[Authorize]</code> attributes on the API and conditional rendering on the Blazor frontend, so a permission added in one place automatically applies in the other.</li>
+        <li><b>DTOs</b> — usually two per entity: a view DTO used by the form (e.g. <code>ProductDTO</code>) and a list DTO used by the list page (<code>ProductListDTO</code>). These are the shapes that travel over the wire between the API and the frontend.</li>
+        <li><b>Enums</b> — domain enums that show up in DTOs (the sample has <code>TrackingMethod</code>).</li>
+        <li><b>Action trees</b> — TypeAuth permission definitions. The same tree drives the permission checks on the API endpoints and what the Blazor frontend shows (for example, which menu links a user sees), so a permission added in one place applies in both.</li>
+        <li><b>Localization</b> — <code>.resx</code> resource files for the UI text (English plus Arabic in the sample).</li>
     </ul>
 
     <DocCallout Type="DocCalloutType.Note">
@@ -54,11 +59,11 @@ YourApp.Shared   ← DTOs, enums, action trees (shared between API and Web)</cod
         The persistence layer. Everything that touches Entity Framework Core lives here:
     </p>
     <ul>
-        <li><b>Entities</b> — the EF Core entity classes. Each one inherits from <code>ShiftEntity&lt;T&gt;</code>, which gives it ID, soft-delete, audit fields, and the ReloadAfterSave hook for free.</li>
-        <li><b>DbContext</b> — your <code>YourAppDbContext</code> registering all entities. Inherits from a Shift base class that wires up multi-tenancy, audit, and conventions.</li>
-        <li><b>Repositories</b> — one per entity, inheriting <code>ShiftRepository&lt;T, TListDTO, TViewDTO&gt;</code>. The repository is where business rules and authorization checks live, not in the controller.</li>
+        <li><b>Entities</b> — the EF Core entity classes. Each one inherits from <code>ShiftEntity&lt;T&gt;</code>, which gives it an ID, audit fields (<code>CreateDate</code>, <code>LastSaveDate</code>, <code>CreatedByUserID</code>, <code>LastSavedByUserID</code>), soft delete (<code>IsDeleted</code>), and the <code>ReloadAfterSave</code> flag for free.</li>
+        <li><b>DbContext</b> — <code>DbContext/DB.cs</code>, a class named <code>DB</code> that registers all entities. With <code>Internal</code> identity it inherits <code>ShiftIdentityDbContext</code>, which adds the identity tables; with <code>External</code> it inherits <code>ShiftDbContext</code>.</li>
+        <li><b>Repositories</b> — one for each entity that needs its own behavior, inheriting <code>ShiftRepository&lt;DB, TEntity, TListDTO, TViewDTO&gt;</code>. The repository is where business rules live, not the endpoint. An endpoint can also use the framework's built-in repository instead of a class of its own — the sample's <code>api/country</code> endpoints do.</li>
         <li><b>Mappers</b> — translate between entities and DTOs. Most entities need nothing here at all: ShiftMapper declares the four maps of every entity/list-DTO/view-DTO triple at build time, from the repository's type arguments. This folder holds one mapper class for the project (<code>YourAppMapper.cs</code>, an ordinary <code>ShiftMapperBase</code>) where the members convention cannot fill are written, plus any fully hand-written <code>IShiftEntityMapper</code>.</li>
-        <li><b>Migrations</b> — EF Core migration files. Run <code>dotnet ef database update</code> from this project's directory.</li>
+        <li><b>Migrations</b> — EF Core migration files. The folder starts empty; <MudLink Href="/get-started/run-the-sample">Run the generated sample</MudLink> shows how to create the first migration and apply it.</li>
         <li><b>Projections</b> / <b>Evaluators</b> — query-shaping helpers used by the sample repositories.</li>
         <li><b>ReplicationModels</b> — projections used by the optional Cosmos DB replication feature.</li>
     </ul>
@@ -72,11 +77,11 @@ YourApp.Shared   ← DTOs, enums, action trees (shared between API and Web)</cod
         gives you the full app.
     </p>
     <ul>
-        <li><b>Program.cs</b> — composition root. Wires up DI, ShiftIdentity, TypeAuth, OData, Azure Storage, and the Blazor middleware. Its <code>RegisterShiftRepositories(...)</code> call also validates the mapping layer at startup — an entity/DTO triple with no mapper fails the boot rather than the first request. This is where you configure the app, not in scattered config files.</li>
-        <li><b>Controllers</b> — thin REST/OData controllers, one per entity. They typically just delegate to the matching repository in <code>YourApp.Data</code>. Business logic does <b>not</b> belong here.</li>
-        <li><b>Services</b> — supporting services like <code>SendEmailService</code>. Anything that doesn't fit a repository pattern.</li>
-        <li><b>Reports</b> — FastReport (.frx) report templates and the controller endpoints that render them.</li>
-        <li><b>appsettings.json</b> / <b>appsettings.Development.json</b> — connection strings, Azure Storage credentials, identity configuration.</li>
+        <li><b>Program.cs</b> — composition root. Wires up DI, ShiftIdentity, TypeAuth, Azure Storage, and the Blazor middleware. Its <code>RegisterShiftRepositories(...)</code> call also validates the mapping layer at startup — an entity/DTO triple with no mapper fails the boot rather than the first request. This is where you configure the app, not in scattered config files.</li>
+        <li><b>Controllers</b> and <b>Endpoints</b> — the thin layer that exposes each entity over HTTP and runs the TypeAuth permission check. The sample shows three ways to do it: a controller (<code>InvoiceController</code>), minimal-API endpoints (<code>Endpoints/ProductEndpoints.cs</code>), and endpoints declared by attributes on the entity itself (<code>Country</code>'s <code>api/country</code>, served by the built-in repository). Business logic does <b>not</b> belong here.</li>
+        <li><b>Services</b> — supporting services like <code>SendEmailService</code> (included with <code>Internal</code> identity). Anything that doesn't fit a repository pattern.</li>
+        <li><b>Reports</b> — FastReport (.frx) report templates. The sample's <code>ProductCategory.frx</code> is filled and rendered by <code>ProductCategoryRepository</code> in <b>Data</b>.</li>
+        <li><b>appsettings.Development.json</b> — connection strings, Azure Storage and Cosmos DB settings, identity configuration. It is the only settings file the template ships, so run the API in the <code>Development</code> environment.</li>
     </ul>
 
     <DocCallout Type="DocCalloutType.Tip">
@@ -95,8 +100,8 @@ YourApp.Shared   ← DTOs, enums, action trees (shared between API and Web)</cod
         <li><b>Pages</b> — Blazor pages, one per route. List pages, form pages, dashboard pages — anything users navigate to.</li>
         <li><b>Components</b> — reusable Blazor components specific to your app (as opposed to the framework-provided ShiftBlazor components).</li>
         <li><b>Shared</b> — layout components (<code>MainLayout</code>, <code>NavMenu</code>) and other components shared across pages.</li>
-        <li><b>Program.cs</b> — Blazor WASM composition root. Registers <code>HttpClient</code>, ShiftBlazor, MudBlazor, and any client-only services.</li>
-        <li><b>wwwroot</b> — static assets: CSS, images, the <code>index.html</code> shell, and the published WASM bundle.</li>
+        <li><b>Program.cs</b> — Blazor WASM composition root. Registers the <code>HttpClient</code> (with automatic token refresh), ShiftBlazor (which also registers MudBlazor), and any client-only services.</li>
+        <li><b>wwwroot</b> — static assets: CSS, images, the <code>index.html</code> shell, and the client's <code>appsettings.Development.json</code> (API and identity URLs).</li>
     </ul>
 
     <p>
@@ -117,9 +122,10 @@ YourApp.Shared   ← DTOs, enums, action trees (shared between API and Web)</cod
 
     <h3>YourApp.Test <small>(only if you passed <code>--addTest true</code>)</small></h3>
     <p>
-        An xUnit integration test project that spins up a real in-memory database
-        and exercises your repositories and controllers end-to-end. Comes with
-        helpers for seeding test data and asserting against the OData query pipeline.
+        An xUnit integration test project that starts your API in-process and
+        exercises your repositories and endpoints end-to-end against a real SQL Server
+        database. It needs SQL Server Express at <code>localhost\sqlexpress</code> — see
+        <MudLink Href="/get-started/template-parameters">Template parameters</MudLink>.
     </p>
 </DocSection>
 
@@ -129,16 +135,17 @@ YourApp.Shared   ← DTOs, enums, action trees (shared between API and Web)</cod
         "Save" on a product form in the generated sample:
     </p>
     <ol>
-        <li>Blazor page in <b>Web</b> serializes the <code>ProductDTO</code> (defined in <b>Shared</b>) and POSTs it to the API.</li>
-        <li>A controller in <b>API</b> receives the DTO, runs the TypeAuth permission check (using the action tree from <b>Shared</b>), and hands the DTO to <code>ProductRepository</code>.</li>
-        <li><code>ProductRepository</code> in <b>Data</b> uses its mapper to translate the DTO into a <code>Product</code> entity, applies business rules, and saves via the DbContext.</li>
-        <li>The repository returns the saved entity mapped back into a <code>ProductDTO</code> (the View shape), which the controller returns as JSON.</li>
+        <li>The Blazor form in <b>Web</b> serializes the <code>ProductDTO</code> (defined in <b>Shared</b>) and sends it to <code>api/product</code> — a POST for a new product, a PUT for an existing one.</li>
+        <li>The product endpoints in <b>API</b> (<code>Endpoints/ProductEndpoints.cs</code>, mapped with <code>MapShiftEntitySecureCrud</code>) receive the DTO, run the TypeAuth permission check for the <code>Product</code> action from the action tree in <b>Shared</b>, and hand the DTO to <code>ProductRepository</code>.</li>
+        <li><code>ProductRepository</code> in <b>Data</b> maps the DTO onto a <code>Product</code> entity, applies business rules, and saves via the DbContext.</li>
+        <li>The saved entity is mapped back into a <code>ProductDTO</code>, which the endpoint returns as JSON.</li>
         <li>Blazor receives the response, updates its state, and shows a success message.</li>
     </ol>
     <p>
-        Notice that the controller is essentially a glue layer. The repository owns
-        the business logic and the DTO contract is the only thing that crosses
-        layer boundaries. This is the rhythm you'll repeat for every entity.
+        Notice that the endpoint is essentially a glue layer: it checks the permission
+        and calls the repository. The repository owns the business logic and the DTO
+        contract is the only thing that crosses layer boundaries. This is the rhythm
+        you'll repeat for every entity.
     </p>
 </DocSection>
 
