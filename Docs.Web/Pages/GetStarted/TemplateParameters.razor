@@ -4,7 +4,7 @@
              Section="Get Started"
              Order="30"
              Status="DocPageStatus.Reviewed"
-             TestedAgainst="2026.10.10.2"
+             TestedAgainst="2026.10.12.1"
              Description="Every parameter the dotnet new shift template accepts, what it controls, and when to change it."
              Keywords="template,parameters,dotnet new shift,includeSampleApp,shiftIdentityHostingType,addFunctions,addTest,external identity" />
 
@@ -36,14 +36,12 @@
         <li><code>External</code> — your app does <b>not</b> host identity. It expects a separate ShiftIdentity instance to authenticate against. Pick this only when you already run a central ShiftIdentity that multiple downstream apps share. You'll also need to set <code>--externalShiftIdentityApi</code> and <code>--externalShiftIdentityFrontEnd</code> below.</li>
     </ul>
 
-    <DocCallout Type="DocCalloutType.Warning">
-        <b>Known issue in 2026.10.10.2:</b> only <code>--includeSampleApp true</code>
-        with <code>--shiftIdentityHostingType Internal</code> builds. With
-        <code>--includeSampleApp false</code> the Web project fails with CS0103
-        (<code>ShiftIdentityActions</code> in <code>Shared/NavMenu.razor</code>), and with
-        <code>External</code> it fails with CS0234 (<code>Development/DevelopmentTools.razor</code>
-        needs the ShiftIdentity dashboard, which External hosting doesn't include).
-        A template fix is in review. Until it ships, use the defaults for your first project.
+    <DocCallout Type="DocCalloutType.Note">
+        On template <b>2026.10.10.2 and earlier</b>, only <code>--includeSampleApp true</code>
+        with <code>--shiftIdentityHostingType Internal</code> builds: the other combinations
+        fail in the Web project with CS0103 or CS0234. Newer releases fix this
+        (checked on <b>2026.10.12.1</b>). If you hit it, update the template
+        (see <MudLink Href="/get-started/installation">Installation</MudLink>) and scaffold again.
     </DocCallout>
 
     <DocCallout Type="DocCalloutType.Tip">
@@ -130,11 +128,6 @@
     <h3>Empty skeleton, no sample, external identity</h3>
     <p>For when you already understand the framework and have a central identity service:</p>
     <DocSnippet Name="ScaffoldSkeletonExternalIdentity" Language="bash" />
-
-    <DocCallout Type="DocCalloutType.Warning">
-        This combination doesn't build on 2026.10.10.2 — see the known issue under
-        <b>Required parameters</b> above.
-    </DocCallout>
 </DocSection>
 
 <DocSection Title="What's next">
