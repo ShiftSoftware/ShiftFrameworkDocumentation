@@ -11,12 +11,9 @@
 #     Web project's wwwroot/appsettings.Development.json
 #
 # REQUIREMENTS: the shift template installed (run install-and-scaffold.sh first).
-#
-# KNOWN ISSUE (2026.10.10.2): --includeSampleApp false and
-# --shiftIdentityHostingType External scaffold projects that do not build. The
-# page carries a Warning for it. This script expects those two builds to fail
-# with the known errors and says so; if a build passes, the template has been
-# fixed and the Warning on the page should be removed.
+#   - the empty skeleton builds with External and with Internal identity
+#     (on 2026.10.10.2 and earlier they failed with CS0234 / CS0103; the page
+#     keeps a Note for readers on an old template)
 
 set -uo pipefail
 
@@ -48,7 +45,6 @@ docs_only_anchors() {
 
 WORK="$(mktemp -d)"
 FAILURES=0
-NOTICES=()
 
 cleanup() {
     rm -rf "$WORK"
@@ -71,15 +67,12 @@ build() {
     (cd "$WORK/$1" && dotnet build > build.log 2>&1)
 }
 
-# build_known_issue <folder> <error pattern>
-build_known_issue() {
+# build_must_pass <folder>
+build_must_pass() {
     if build "$1"; then
         pass "$1 builds"
-        NOTICES+=("$1 now builds: the known issue is fixed, remove the Warning from the page")
-    elif grep -qE "$2" "$WORK/$1/build.log"; then
-        pass "$1 fails with the known issue ($2)"
     else
-        fail "$1 fails with an unexpected error:"
+        fail "$1 does not build:"
         grep -E ': error ' "$WORK/$1/build.log" | sort -u | head -5
     fi
 }
@@ -126,18 +119,17 @@ if scaffold skeleton-external --includeSampleApp false --shiftIdentityHostingTyp
         && pass "ShiftIdentityFrontEnd = https://identity.example.com" || fail "ShiftIdentityFrontEnd not set from --externalShiftIdentityFrontEnd"
 
     echo "[verify] building..."
-    build_known_issue skeleton-external "DevelopmentTools\.razor.*CS0234"
+    build_must_pass skeleton-external
 fi
 
-# --- No sample, Internal identity (not a page combination; backs the Warning) ---
+# --- No sample, Internal identity (not a page combination; backs the Note) ---
 echo "[verify] scaffolding no sample + Internal..."
 if scaffold skeleton-internal --includeSampleApp false --shiftIdentityHostingType Internal; then
     echo "[verify] building..."
-    build_known_issue skeleton-internal "NavMenu\.razor.*CS0103"
+    build_must_pass skeleton-internal
 fi
 
 echo
-for n in "${NOTICES[@]+"${NOTICES[@]}"}"; do echo "[verify] NOTICE: $n"; done
 if [ "$FAILURES" -gt 0 ]; then
     echo "=== Template-parameters verification FAILED ($FAILURES) ==="
     pause_if_interactive

@@ -7,7 +7,7 @@
 # Internal identity), so the page fails loudly when the template changes shape:
 #   - the four projects in the solution and who references whom
 #   - the folders each project section of the page names
-#   - the E2ETests folder exists but is not in the solution
+#   - no E2ETests folder and no Web/Development folder (removed in 2026.10.11.1+)
 #   - API ships only appsettings.Development.json
 #   - the request-flow example: Product is served by minimal-API endpoints
 #     (MapShiftEntitySecureCrud), the old ProductController is [NonController]
@@ -45,14 +45,15 @@ check "API references Data and Web"         [ "$(refs API)" = "Data Web " ]
 check "Data references Shared"              [ "$(refs Data)" = "Shared " ]
 check "Web references Shared"               [ "$(refs Web)" = "Shared " ]
 check "Shared references nothing"           [ -z "$(refs Shared)" ]
-check "E2ETests folder exists"              [ -f "$APP.E2ETests/package.json" ]
+check "no E2ETests folder"                  [ ! -e "$APP.E2ETests" ]
 check "E2ETests is not in the solution"     bash -c "! grep -q 'E2ETests' '$APP.sln'"
 
 # --- Per-project folders named on the page ---
 check "Shared folders"  has_dirs Shared ActionTrees DTOs Enums Localization
 check "Data folders"    has_dirs Data DbContext Entities Evaluators Mappers Migrations Projections ReplicationModels Repositories
 check "API folders"     has_dirs API Controllers Endpoints Reports Services
-check "Web folders"     has_dirs Web Components Development Pages Shared wwwroot
+check "Web folders"     has_dirs Web Components Pages Shared wwwroot
+check "no Web/Development folder"            [ ! -e "$APP.Web/Development" ]
 check "Migrations folder starts empty" [ -z "$(find "$APP.Data/Migrations" -name '*.cs')" ]
 check "API ships only appsettings.Development.json" \
     [ "$(cd "$APP.API" && ls appsettings*.json | tr '\n' ' ')" = "appsettings.Development.json " ]

@@ -4,9 +4,9 @@
              Section="Get Started"
              Order="40"
              Status="DocPageStatus.Reviewed"
-             TestedAgainst="2026.10.10.2"
+             TestedAgainst="2026.10.12.1"
              Description="What each project in a generated Shift Framework solution does, and how the pieces fit together."
-             Keywords="project,structure,architecture,api,data,shared,web,functions,test,e2e,layers" />
+             Keywords="project,structure,architecture,api,data,shared,web,functions,test,layers" />
 
 <DocSection Title="Solution layout">
     <p>
@@ -30,9 +30,8 @@
     </p>
     <p>
         If you opted into <code>--addFunctions</code> or <code>--addTest</code>, you'll also
-        see <code>YourApp.Functions</code> and <code>YourApp.Test</code> next to the API.
-        With the sample app there is also a <code>YourApp.E2ETests</code> folder — browser
-        tests, not part of the solution (see <b>Optional projects</b> below).
+        see <code>YourApp.Functions</code> and <code>YourApp.Test</code> next to the API
+        (see <b>Optional projects</b> below).
     </p>
 </DocSection>
 
@@ -101,7 +100,6 @@
         <li><b>Pages</b> — Blazor pages, one per route. List pages, form pages, dashboard pages — anything users navigate to.</li>
         <li><b>Components</b> — reusable Blazor components specific to your app (as opposed to the framework-provided ShiftBlazor components).</li>
         <li><b>Shared</b> — layout components (<code>MainLayout</code>, <code>NavMenu</code>) and other components shared across pages.</li>
-        <li><b>Development</b> — development-only pages, such as tools for synthetic test accounts and authenticator codes.</li>
         <li><b>Program.cs</b> — Blazor WASM composition root. Registers the <code>HttpClient</code> (with automatic token refresh), ShiftBlazor (which also registers MudBlazor), and any client-only services.</li>
         <li><b>wwwroot</b> — static assets: CSS, images, the <code>index.html</code> shell, and the client's <code>appsettings.Development.json</code> (API and identity URLs).</li>
     </ul>
@@ -128,14 +126,6 @@
         exercises your repositories and endpoints end-to-end against a real SQL Server
         database. It needs SQL Server Express at <code>localhost\sqlexpress</code> — see
         <MudLink Href="/get-started/template-parameters">Template parameters</MudLink>.
-    </p>
-
-    <h3>YourApp.E2ETests <small>(with the sample app)</small></h3>
-    <p>
-        Browser tests for the sample's "needs attention" feature, written in TypeScript
-        with <code>puppeteer-core</code>. It is a Node.js folder, not a .NET project, so it
-        isn't in the solution; its <code>README.md</code> lists what it needs (a running
-        API and a migrated database).
     </p>
 </DocSection>
 
