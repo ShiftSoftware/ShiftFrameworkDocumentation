@@ -19,7 +19,12 @@
         <li><b>With a <code>Key</code></b> it loads the record with <code>GET {Endpoint}/{Key}</code> and opens in <b>View</b> mode.</li>
         <li><b>Without a <code>Key</code></b> it switches itself to <b>Create</b> mode and saves with <code>POST {Endpoint}</code>.</li>
         <li><b>Edit</b> then <b>Save</b> sends <code>PUT {Endpoint}/{Key}</code> with the form's current item as the body.</li>
-        <li><b>Delete</b> sends <code>DELETE {Endpoint}/{Key}</code>. Print and View Revisions buttons are available too.</li>
+        <li><b>Delete</b> sends <code>DELETE {Endpoint}/{Key}</code>.</li>
+        <li><b>View Revisions</b> appears once a record is loaded and the user has Read access. <code>HideRevisions</code> hides it.</li>
+        <li><b>Print</b> is <b>hidden by default</b>: set <code>ShowPrint="true"</code> to show it (the user also needs Read
+            access). It works in View and Archive mode only. It gets a token with <code>GET {Endpoint}/print-token/{Key}</code>,
+            then opens <code>{Endpoint}/print/{Key}</code> with that token in a new browser tab, so the API must serve both
+            routes. With <code>PrintConfig</code> set, it first opens a dialog where the user picks print options.</li>
     </ul>
     <p>
         <code>Endpoint</code> is required: the form throws <code>ArgumentNullException</code> without it. The URL is
@@ -54,9 +59,11 @@
         <li><code>ViewFormOnSave</code> (the default): shows a success message, switches to View mode and shows the saved record.
             After a <b>create</b> on a routed page it also appends the new key to the browser URL, so the page's route
             should accept it (for example <code>/CustomerForm/{Key?}</code>). Inside a modal it updates the modal's key instead.</li>
-        <li><code>ResetFormOnSave</code>: clears the form to a new item, ready for the next one. This example uses it,
-            because this page has no route for the new key.</li>
-        <li><code>CloseFormOnSave</code>: closes the form when it is open in a modal.</li>
+        <li><code>ResetFormOnSave</code>: clears the form to a new item, ready for the next one, without a success message.
+            This example uses it, because this page has no route for the new key.</li>
+        <li><code>CloseFormOnSave</code>: <b>only for a form open in a modal</b>. It closes the modal and returns the saved item
+            as the modal's result, without a success message. On a form that is not in a modal it does nothing after the
+            save: no message, and the form stays in Edit or Create mode.</li>
     </ul>
     <DocCallout Type="DocCalloutType.Warning" Title="The user's setting wins">
         The form reads <code>SettingManager.Settings.FormOnSaveAction</code> first, then the
@@ -87,7 +94,11 @@
     <ul>
         <li><code>context.Item</code>: the record the form holds (its <code>Value</code>).</li>
         <li><code>context.Mode</code>, <code>context.ReadOnly</code>, <code>context.Disabled</code>: the form's mode, whether it is read-only, and whether a task such as saving is in progress.</li>
-        <li><code>context.Embedded</code>: whether the form is shown read-only inside another form.</li>
+        <li><code>context.Embedded</code>: the form's <code>Embedded</code> parameter. A host that shows a form as a pane
+            inside something else sets it, so the form doesn't take over the page: it doesn't switch itself to Create
+            mode, register keyboard shortcuts, autofocus, open a revision from the URL or join the record's attention
+            feed. It does <b>not</b> make the form read-only: the form keeps the <code>Mode</code> it is given. The
+            revision compare view, for example, passes <code>Embedded="true"</code> together with <code>Mode="FormModes.Archive"</code>.</li>
         <li><code>context.SetMode(...)</code>, <code>context.Validate()</code>, <code>context.ShowAlert(...)</code>, <code>context.CloseModal()</code>: act on the form from your fields.</li>
     </ul>
     <p>
@@ -104,14 +115,14 @@
     </p>
     <DocCodeBlock Language="razor" Code="@(@"<ShiftEntityForm @bind-Value=""_item""
                  @bind-Key=""Key""
-                 Endpoint=""Car""
-                 TypeAuthAction=""StockPlusPlusActionTree.Car"">
+                 Endpoint=""Vehicle""
+                 TypeAuthAction=""StockPlusPlusActionTree.Vehicle"">
     ...
 </ShiftEntityForm>")" />
     <DocCallout Type="DocCalloutType.Danger" Title="Hiding a button is not security">
         <code>TypeAuthAction</code> only changes what the form shows. Anyone can still call the API directly, so the
         controller must enforce the same action: pass it to the secure controller's base constructor
-        (<code>base(StockPlusPlusActionTree.Car)</code>). With <code>base(null)</code> every API check is skipped.
+        (<code>base(StockPlusPlusActionTree.Vehicle)</code>). With <code>base(null)</code> every API check is skipped.
     </DocCallout>
 </DocSection>
 
