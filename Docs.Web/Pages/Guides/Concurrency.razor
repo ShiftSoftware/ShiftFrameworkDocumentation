@@ -14,8 +14,8 @@
             the client sent, and answers <b>409 Conflict</b> if they differ. That is the whole mechanism.</li>
         <li><b>It only looks at the root.</b> Child records' stamps are never compared, so a stale child can overwrite a
             newer one without a 409.</li>
-        <li><b>The root is re-stamped on every save</b> — even when nothing changed, and even when only a child changed.
-            Every other open copy then gets a 409 for edits that never actually conflicted.</li>
+        <li><b>A save through the root's own form re-stamps the root</b> — even when nothing changed, and even when only
+            a child changed. Every other open copy then gets a 409 for edits that never actually conflicted.</li>
         <li><b>The check is not in the database.</b> It runs in C# before the save, and the <code>UPDATE</code> checks no
             version, so two saves that arrive together can both pass and one edit is silently lost.</li>
         <li><b>An action that changes a record must answer with the new version</b>, or the form that ran it fails its
@@ -63,19 +63,22 @@ await repository.SaveChangesAsync();")" />
     <ol>
         <li><b>A save that changes nothing still moves the stamp.</b> Tab A presses Save without editing; the stamp moves;
             tab B's real edit gets a 409 although no data changed.</li>
-        <li><b>Saving a child moves the parent's stamp.</b> Children are saved through their parent, which is always
-            re-stamped. Change one invoice line's price, and another tab editing only the invoice header gets a 409.</li>
-        <li><b>Stamps on child DTOs are never compared.</b> If a line is changed by another path (its own stamp moves, the
-            invoice's does not), a tab holding the old line saves it back with no 409 — and because lines are usually
-            replaced on save, the newer value is simply gone.</li>
+        <li><b>Saving a child through its parent moves the parent's stamp.</b> In the parent's form, children are saved
+            with the parent's <code>PUT</code>, which always re-stamps the parent. Change one invoice line's price there,
+            and another tab editing only the invoice header gets a 409.</li>
+        <li><b>Stamps on child DTOs are never compared.</b> A child changed by another path — its own endpoint, or an
+            action that changes only the child — gets a new stamp of its own, but the parent's stamp does not move. A tab
+            holding the old line then saves the invoice with no 409 — and because lines are usually replaced on save, the
+            newer value is simply gone.</li>
         <li><b>Two saves that both pass the check both commit.</b> Check and save are separate steps and no column is a
             database-checked version. Two requests that load the same version both pass, both save, both answer
             "saved" — and when they changed the same field, the first edit is lost.</li>
     </ol>
     <DocCallout Type="DocCalloutType.Tip" Title="Different fields merge, the same field does not">
-        EF Core only writes the columns that changed on the row each request loaded. So in weakness 4, two racing saves that
-        edit <i>different</i> fields both survive; data is lost when the edits <i>overlap</i>. Don't rely on this: a mapper
-        that writes every column, or children replaced on save, make every race overlap.
+        EF Core only writes the columns whose value changed on the row each request loaded. Assigning a column the value
+        it already has is not a change, so a mapper that copies every member of the DTO still writes only what the user
+        edited. So in weakness 4, two racing saves that edit <i>different</i> fields both survive; an edit is lost when
+        both change the <i>same</i> field. Don't rely on this: nothing tells the user their edit was overwritten.
     </DocCallout>
     <p>
         Weaknesses 1 and 2 make conflicts appear where there are none; weaknesses 3 and 4 hide conflicts that are real. The
@@ -89,8 +92,9 @@ await repository.SaveChangesAsync();")" />
         always failed with a 409, although nobody else had touched it.
     </p>
     <p>
-        <b>Why.</b> The action cancelled a line <i>and</i> recalculated the order's total, and saved through the repository,
-        so the order got a new <code>LastSaveDate</code>. The action answered <code>204 No Content</code>, so the form kept the
+        <b>Why.</b> The action cancelled a line <i>and</i> recalculated the order's total. The order row itself changed, so
+        the repository's save stamped it too: the order got a new <code>LastSaveDate</code>. (An action that changed only
+        the line would not have moved the order's stamp — that is weakness 3 instead.) The action answered <code>204 No Content</code>, so the form kept the
         stamp it had loaded before. Its next <code>PUT</code> carried an out-of-date stamp: 409, every time.
     </p>
     <p><b>The fix.</b> An action that changes a record answers with that record — the root — as it now is, in the same
@@ -139,11 +143,25 @@ await repository.SaveChangesAsync();")" />
     <h3 class="mt-4">Recipe: a resumable, cancellable batch sync</h3>
     <p>Keep the sync's progress on the rows it processes, and write each row's result and its progress together:</p>
     <DocSnippet Name="ConcurrencyResumableInbox" Language="cs" />
-    <p>Then process batches. Each batch's results and its rows' Done/Failed marks are one transaction:</p>
+    <p>Give each source row one result, enforced by the database:</p>
+    <DocSnippet Name="ConcurrencySyncUniqueKey" Language="cs" />
+    <p>
+        Then process batches. Each batch's results and its rows' Done/Failed marks are one transaction. Only an error the
+        row itself causes marks it Failed; anything else stops the run and leaves the batch Pending:
+    </p>
     <DocSnippet Name="ConcurrencyResumableSyncLoop" Language="cs" />
-    <p>Give the run a time budget shorter than any timeout around it, so it stops with an answer instead of an error:</p>
+    <p>
+        Let only one run work on a feed at a time. A caller that retries while the first run is still going, or a second
+        server, would otherwise read the same Pending rows. A SQL Server application lock on the run's connection does
+        this across processes, and the server drops it if the run dies:
+    </p>
+    <DocSnippet Name="ConcurrencySyncRunLock" Language="cs" />
+    <p>
+        Always give the run a time budget shorter than any timeout around it, so it stops with an answer instead of an
+        error. The server sets it: a caller that sends none gets the default, and none can ask for more than the maximum:
+    </p>
     <DocSnippet Name="ConcurrencySyncEndpoint" Language="cs" />
-    <p>What this guarantees, proven against SQL Server with 10,000 rows:</p>
+    <p>What this guarantees, proven against SQL Server (the first four with 10,000 rows in the StockPlusPlus sample's sync, the last two by running this recipe):</p>
     <ul>
         <li><b>Finished work is kept.</b> A cancel loses at most the batch in flight — never part of a batch.</li>
         <li><b>The caller learns how far it got.</b> A cancelled run answers <code>Cancelled</code> with what it did and
@@ -152,6 +170,10 @@ await repository.SaveChangesAsync();")" />
             the next run processed exactly the 8,000 left.</li>
         <li><b>Bad rows don't block the sync.</b> A row that fails validation, or that SQL Server refuses (found by retrying
             the batch row by row), is marked <code>Failed</code> with the reason and never retried; the rest finish.</li>
+        <li><b>Good rows are never failed by accident.</b> A deadlock, a timeout or a lost connection is not the row's
+            fault: the run stops, the batch rolls back, and the rows stay <code>Pending</code> for the next run.</li>
+        <li><b>Runs don't overlap.</b> A second run on the same feed answers <code>AlreadyRunning</code> at once, and the
+            unique key stops a duplicate result even if something else writes too.</li>
     </ul>
     <DocCallout Type="DocCalloutType.Tip" Title="No inbox table?">
         When the source is not yours to mark, keep a checkpoint row instead (the last committed key per feed) and update it
@@ -177,8 +199,10 @@ await repository.SaveChangesAsync();")" />
         <li>Every form that runs such an action takes the answer (or reloads) before the next save.</li>
         <li>Never relax the <code>LastSaveDate</code> comparison to make a 409 go away.</li>
         <li>Long writes commit in batches that carry their own progress, and report <code>Remaining</code> when cancelled.</li>
-        <li>A row that can never be processed is marked, not retried forever.</li>
-        <li>Pass the caller's <code>CancellationToken</code>, and add a time budget shorter than the timeouts around you.</li>
+        <li>A row that can never be processed is marked, not retried forever — and only errors the row causes mark it.</li>
+        <li>Only one run per feed at a time, and the database refuses a second result for the same source row.</li>
+        <li>Pass the caller's <code>CancellationToken</code>, and always add a time budget shorter than the timeouts around
+            you; the server sets it, not the caller.</li>
     </ul>
 </DocSection>
 
