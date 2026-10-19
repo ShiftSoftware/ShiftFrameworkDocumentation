@@ -15,8 +15,9 @@
 # earlier `-n Vehicle` stopped with "would overwrite existing files".
 #
 # REQUIREMENTS:
-#   - install-and-scaffold.sh and run-sample.sh have run (from the same folder):
-#     the project exists and has its InitialCreate migration
+#   - install-and-scaffold.sh has run (from the same folder): the project exists.
+#     run-sample.sh is not needed first: without its InitialCreate migration this
+#     script adds it the same way.
 #   - LocalDB and sqlcmd (as for run-sample.sh)
 #
 # The C# and Razor snippets sit inside a quoted heredoc so bash never reads them
@@ -139,8 +140,14 @@ trap 'echo; echo "=== Script failed at line $LINENO ==="; pause_if_interactive' 
 
 cd MyFirstShiftApp
 
-if [ -z "$(find MyFirstShiftApp.Data/Migrations -name '*_InitialCreate.cs' 2>/dev/null)" ]; then
-    echo "[verify] no InitialCreate migration — run run-sample.sh first."; exit 1
+# The reader arrives from Run the generated sample, which adds InitialCreate. If run-sample.sh hasn't run in this
+# folder, add it the same way (idempotent, as there), so this script doesn't depend on the order scripts run in.
+if [ -z "$(find MyFirstShiftApp.Data/Migrations -name '*.cs' 2>/dev/null)" ]; then
+    echo "[verify] adding InitialCreate (the migration Run the generated sample creates)..."
+    if ! dotnet ef migrations add InitialCreate --context DB --project MyFirstShiftApp.Data --startup-project MyFirstShiftApp.API > ef.log 2>&1; then
+        echo "[verify] InitialCreate could not be added:"; tail -20 ef.log; exit 1
+    fi
+    rm -f ef.log
 fi
 SNAPSHOT_BACKUP="$(mktemp)"
 cp MyFirstShiftApp.Data/Migrations/DBModelSnapshot.cs "$SNAPSHOT_BACKUP"

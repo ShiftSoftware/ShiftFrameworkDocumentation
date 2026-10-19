@@ -2,9 +2,10 @@
 # Verification script for the Get Started > Project tour page.
 #
 # The page shows no commands; it describes the structure of a generated
-# solution. This script checks those structural facts against the
-# MyFirstShiftApp project that install-and-scaffold.sh creates (sample app,
-# Internal identity), so the page fails loudly when the template changes shape:
+# solution. This script scaffolds a fresh MyFirstShiftApp into a scratch folder
+# with the Installation page's own command (the ScaffoldFirstProject snippet in
+# install-and-scaffold.sh: sample app, Internal identity) and checks those
+# structural facts, so the page fails loudly when the template changes shape:
 #   - the four projects in the solution and who references whom
 #   - the folders each project section of the page names
 #   - no E2ETests folder and no Web/Development folder (removed in 2026.10.11.1+)
@@ -12,7 +13,9 @@
 #   - the request-flow example: Product is served by minimal-API endpoints
 #     (MapShiftEntitySecureCrud), the old ProductController is [NonController]
 #
-# REQUIREMENTS: run install-and-scaffold.sh first (from the same folder).
+# REQUIREMENTS: the shift template installed (install-and-scaffold.sh installs it).
+# It doesn't use the MyFirstShiftApp folder the other scripts share: run-sample.sh
+# adds a migration there, so checking that folder only passed before run-sample.sh.
 
 set -uo pipefail
 
@@ -28,12 +31,19 @@ pass() { echo "[verify] ok: $*"; }
 check() { local what="$1"; shift; if "$@"; then pass "$what"; else fail "$what"; fi; }
 
 APP=MyFirstShiftApp
-if [ ! -f "$APP/$APP.sln" ]; then
-    echo "[verify] $APP/$APP.sln not found — run install-and-scaffold.sh first."
+SCRIPTS="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+WORK="$(mktemp -d)"
+trap 'rm -rf "$WORK"' EXIT
+
+# The reader's scaffold command, read out of install-and-scaffold.sh (without CRs, so a CRLF checkout works).
+SCAFFOLD="$(tr -d '\r' < "$SCRIPTS/install-and-scaffold.sh" | sed -n '/# snippet:ScaffoldFirstProject$/,/# endsnippet/p' | sed '1d;$d')"
+echo "[verify] scaffolding a fresh $APP in a scratch folder..."
+if ! (cd "$WORK" && eval "$SCAFFOLD") > "$WORK/scaffold.log" 2>&1 || [ ! -f "$WORK/$APP/$APP.sln" ]; then
+    echo "[verify] scaffold failed (is the shift template installed?):"; tail -20 "$WORK/scaffold.log"
     pause_if_interactive
     exit 1
 fi
-cd "$APP"
+cd "$WORK/$APP"
 
 sln_projects() { grep -oE 'Project\([^)]*\) = "[^"]+"' "$APP.sln" | cut -d'"' -f4 | sort | tr '\n' ' '; }
 refs() { grep -oE 'ProjectReference Include="[^"]+"' "$APP.$1/$APP.$1.csproj" | grep -oE '[A-Za-z.]+\.csproj' | sed "s/^$APP\.//; s/\.csproj$//" | sort | tr '\n' ' '; }
