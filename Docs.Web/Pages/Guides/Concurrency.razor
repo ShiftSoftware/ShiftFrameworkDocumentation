@@ -101,24 +101,38 @@ await repository.SaveChangesAsync();")" />
         shape as <code>GET</code>:</p>
     <DocSnippet Name="ConcurrencyActionReturnsCurrentRoot" Language="cs" />
     <p>
-        The form must then take that version. <code>ShiftEntityForm</code> has no public way to accept a new value after it
-        has loaded, so rebuild it by changing its <code>@@key</code>; the new instance loads the current record:
+        The form must then take that version. Give it the answer through <code>@@bind-Value</code>:
+        <code>ShiftEntityForm</code> follows a new <code>Value</code> from its parent, and when the user then clicks Edit
+        it snapshots that value, so a later Cancel restores the current version too. Offer the action in View mode only:
+        replacing the value in Edit mode would throw away the user's unsaved edits.
     </p>
-    <DocCodeBlock Language="razor" Code="@(@"<ShiftEntityForm @key=""formVersion"" @bind-Value=""order"" @bind-Key=""Key"" Endpoint=""Order"" ...>
+    <DocCodeBlock Language="razor" Code="@(@"<ShiftEntityForm @bind-Value=""order"" @bind-Key=""Key"" Endpoint=""Order"" ...>
     ...
-    <MudButton OnClick=""() => CancelLineAsync(line)"">Cancel line</MudButton>
+    @if (context.Mode == FormModes.View)
+    {
+        <MudButton OnClick=""() => CancelLineAsync(line)"">Cancel line</MudButton>
+    }
 </ShiftEntityForm>
 
 @code {
-    private int formVersion;
+    private OrderDTO order = new();
 
     private async Task CancelLineAsync(OrderLineDTO line)
     {
         using var response = await Http.PostAsync($""Order/{Key}/lines/{line.ID}/cancel"", null);
-        if (response.IsSuccessStatusCode)
-            formVersion++;   // rebuild: the form loads the order with its new LastSaveDate
+        if (!response.IsSuccessStatusCode)
+            return;
+
+        var current = await response.Content.ReadFromJsonAsync<ShiftEntityResponse<OrderDTO>>();
+        if (current?.Entity is not null)
+            order = current.Entity;   // the form now holds the order with its new LastSaveDate
     }
 }")" />
+    <p>
+        The framework already does this in miniature: the attention-clear endpoint answers with the new
+        <code>LastSaveDate</code>, and <code>ShiftEntityForm</code> patches its stamp from it. An action like this one
+        changes more than the stamp (the line and the total), so the whole record has to come back.
+    </p>
     <DocCallout Type="DocCalloutType.Warning" Title="Don't fix it by loosening the check">
         The form's old copy really is out of date: its line still says "not cancelled". Accepting its stamp would save that
         line back and silently undo the action (weakness 3). Keep the check strict; give the client the new version.
@@ -146,8 +160,11 @@ await repository.SaveChangesAsync();")" />
     <p>Give each source row one result, enforced by the database:</p>
     <DocSnippet Name="ConcurrencySyncUniqueKey" Language="cs" />
     <p>
-        Then process batches. Each batch's results and its rows' Done/Failed marks are one transaction. Only an error the
-        row itself causes marks it Failed; anything else stops the run and leaves the batch Pending:
+        Then process batches. Each batch's results and its rows' Done/Failed marks are one transaction, saved with
+        <code>CancellationToken.None</code>: if a cancel could cut a batch's write short, a time budget shorter than one
+        batch would lose that batch on every run, which is the incident again. The token is checked between batches
+        instead. Only an error the row itself causes marks it Failed, with a short reason; anything else stops the run
+        and leaves the batch Pending:
     </p>
     <DocSnippet Name="ConcurrencyResumableSyncLoop" Language="cs" />
     <p>
@@ -161,15 +178,17 @@ await repository.SaveChangesAsync();")" />
         error. The server sets it: a caller that sends none gets the default, and none can ask for more than the maximum:
     </p>
     <DocSnippet Name="ConcurrencySyncEndpoint" Language="cs" />
-    <p>What this guarantees, proven against SQL Server (the first four with 10,000 rows in the StockPlusPlus sample's sync, the last two by running this recipe):</p>
+    <p>What this guarantees, proven against SQL Server (the first four with 10,000 rows in the StockPlusPlus sample's sync, and by running this recipe):</p>
     <ul>
-        <li><b>Finished work is kept.</b> A cancel loses at most the batch in flight — never part of a batch.</li>
+        <li><b>Finished work is kept.</b> A cancel stops the run between batches. A batch that has started writing always
+            finishes, so the database never holds part of a batch, and a short budget still makes progress.</li>
         <li><b>The caller learns how far it got.</b> A cancelled run answers <code>Cancelled</code> with what it did and
             <code>Remaining</code>; the counts use <code>CancellationToken.None</code> so they still work after a cancel.</li>
         <li><b>The next run resumes.</b> It starts at the first row still <code>Pending</code>: cancelled after 2,000 rows,
             the next run processed exactly the 8,000 left.</li>
         <li><b>Bad rows don't block the sync.</b> A row that fails validation, or that SQL Server refuses (found by retrying
-            the batch row by row), is marked <code>Failed</code> with the reason and never retried; the rest finish.</li>
+            the batch row by row), is marked <code>Failed</code> and never retried; the rest finish. The reason is a short
+            text, never SQL Server's message: the result goes back to callers, and that message names tables and columns.</li>
         <li><b>Good rows are never failed by accident.</b> A deadlock, a timeout or a lost connection is not the row's
             fault: the run stops, the batch rolls back, and the rows stay <code>Pending</code> for the next run.</li>
         <li><b>Runs don't overlap.</b> A second run on the same feed answers <code>AlreadyRunning</code> at once, and the
@@ -196,7 +215,7 @@ await repository.SaveChangesAsync();")" />
 <DocSection Title="Checklist">
     <ul>
         <li>Every custom action that changes a record answers with that record's root as it now is.</li>
-        <li>Every form that runs such an action takes the answer (or reloads) before the next save.</li>
+        <li>Every form that runs such an action takes the answer before the next save.</li>
         <li>Never relax the <code>LastSaveDate</code> comparison to make a 409 go away.</li>
         <li>Long writes commit in batches that carry their own progress, and report <code>Remaining</code> when cancelled.</li>
         <li>A row that can never be processed is marked, not retried forever — and only errors the row causes mark it.</li>

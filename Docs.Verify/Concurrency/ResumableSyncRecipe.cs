@@ -112,10 +112,13 @@ public class ResumableSync(SyncDb db)
                 try
                 {
                     // The batch's results and its rows' marks: ONE transaction. Kept whole or rolled back whole.
-                    await db.SaveChangesAsync(cancellationToken);
+                    // Not the caller's token: a cancel mid-write would roll the batch back, and a time budget shorter than
+                    // one batch would then lose that batch on every run (the incident again). The run stops at the next
+                    // ThrowIfCancellationRequested instead.
+                    await db.SaveChangesAsync(CancellationToken.None);
                     Count(batch, result);
                 }
-                catch (DbUpdateException e) when (!cancellationToken.IsCancellationRequested && IsCausedByARow(e))
+                catch (DbUpdateException e) when (PermanentReason(e) is not null)
                 {
                     // A row the database refuses would fail this batch on every run: find it, one row at a time.
                     // Any other error (a deadlock, a timeout, a lost connection) is not caught: the batch rolls back,
@@ -130,8 +133,8 @@ public class ResumableSync(SyncDb db)
                                   && (e is OperationCanceledException or SqlException
                                       || e.InnerException is OperationCanceledException or SqlException))
         {
-            // "Operation cancelled by user": only the batch in flight rolled back. The next run starts at the
-            // first row still Pending, so nothing has to start again from zero.
+            // Stopped between batches or during a read ("Operation cancelled by user" when a read was in flight). No
+            // write was cut short, and the next run starts at the first row still Pending.
             result.Status = SyncRunStatus.Cancelled;
         }
 
@@ -139,11 +142,18 @@ public class ResumableSync(SyncDb db)
         return result;
     }
 
-    // Only an error the row itself causes settles it as Failed: a duplicate key (2627, 2601), a broken foreign key or
-    // check (547), a missing required value (515) or a value too long (8152, 2628). Retrying those can never succeed.
-    private static bool IsCausedByARow(DbUpdateException e)
-        => e.InnerException is SqlException sql
-           && sql.Errors.Cast<SqlError>().All(x => x.Number is 2627 or 2601 or 547 or 515 or 8152 or 2628);
+    // Only an error the row itself causes settles it as Failed, with a short reason: the result goes back to callers,
+    // and SQL Server's own message names tables and columns. Any other error stops the run, so a constraint the row
+    // breaks (547) counts as the row's too: left Pending, it would stop every run at the same place.
+    private static string? PermanentReason(DbUpdateException e)
+        => e.InnerException is SqlException sql ? sql.Number switch
+        {
+            2627 or 2601 => "Duplicate: another row already has this key.",
+            547 => "The row breaks a database constraint.",
+            515 => "A required value is missing.",
+            8152 or 2628 => "A value is too long for its column.",
+            _ => null,
+        } : null;
     // endsnippet
 
     private async Task<int> CountPendingAsync(string feed)
@@ -195,15 +205,15 @@ public class ResumableSync(SyncDb db)
 
             try
             {
-                await db.SaveChangesAsync(cancellationToken);
+                await db.SaveChangesAsync(CancellationToken.None);
             }
-            catch (DbUpdateException e) when (!cancellationToken.IsCancellationRequested && IsCausedByARow(e))
+            catch (DbUpdateException e) when (PermanentReason(e) is { } reason)
             {
                 db.ChangeTracker.Clear();
-                row = await db.Inbox.SingleAsync(x => x.ID == id, cancellationToken);
+                row = await db.Inbox.SingleAsync(x => x.ID == id, CancellationToken.None);
                 row.Status = SyncRowStatus.Failed;
-                row.Error = "Rejected by the database: " + (e.InnerException ?? e).Message;
-                await db.SaveChangesAsync(cancellationToken);
+                row.Error = reason;
+                await db.SaveChangesAsync(CancellationToken.None);
             }
 
             Count([row], result);
