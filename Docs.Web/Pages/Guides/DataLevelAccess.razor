@@ -141,7 +141,7 @@
     <p>The repository selects the TypeAuth access level at each operation stage:</p>
     <ul>
         <li>Lists and single-record fetches use <b>Read</b>, including the fetch before an edit or delete.</li>
-        <li>An inserted row and the mapped result of an edit use <b>Write</b>.</li>
+        <li>An inserted row uses <b>Write</b>. An edit needs <b>Write</b> on the row as stored and on the mapped result, so a caller can't move a row out of a scope they can only read.</li>
         <li>The row authorization before a delete uses <b>Delete</b>.</li>
     </ul>
 
