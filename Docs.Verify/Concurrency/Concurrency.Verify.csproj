@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <Import Project="..\..\..\ShiftTemplates\ShiftFrameworkGlobalSettings.props"
+          Condition="Exists('..\..\..\ShiftTemplates\ShiftFrameworkGlobalSettings.props')" />
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+
+    <PackageReference Include="ShiftSoftware.ShiftEntity.EFCore" Version="$(ShiftFrameworkVersion)" />
+    <PackageReference Include="ShiftSoftware.ShiftEntity.Web" Version="$(ShiftFrameworkVersion)" />
+    <PackageReference Include="ShiftSoftware.ShiftIdentity.Core" Version="$(ShiftFrameworkVersion)" />
+
+    <ProjectReference Include="..\..\..\ShiftEntity\ShiftEntity.EFCore\ShiftEntity.EFCore.csproj"
+                      Condition="Exists('..\..\..\ShiftEntity\ShiftEntity.EFCore\ShiftEntity.EFCore.csproj') And '$(ImportShiftFrameworkProjects)'=='true'" />
+    <ProjectReference Include="..\..\..\ShiftEntity\ShiftEntity.Web\ShiftEntity.Web.csproj"
+                      Condition="Exists('..\..\..\ShiftEntity\ShiftEntity.Web\ShiftEntity.Web.csproj') And '$(ImportShiftFrameworkProjects)'=='true'" />
+    <ProjectReference Include="..\..\..\ShiftIdentity\ShiftIdentity.Core\ShiftIdentity.Core.csproj"
+                      Condition="Exists('..\..\..\ShiftIdentity\ShiftIdentity.Core\ShiftIdentity.Core.csproj') And '$(ImportShiftFrameworkProjects)'=='true'" />
+  </ItemGroup>
+</Project>
