@@ -3,7 +3,8 @@
 <DocPageMeta Title="Template parameters"
              Section="Get Started"
              Order="30"
-             Status="DocPageStatus.Draft"
+             Status="DocPageStatus.Reviewed"
+             TestedAgainst="2026.10.15.1"
              Description="Every parameter the dotnet new shift template accepts, what it controls, and when to change it."
              Keywords="template,parameters,dotnet new shift,includeSampleApp,shiftIdentityHostingType,addFunctions,addTest,external identity" />
 
@@ -23,7 +24,7 @@
         skeleton.
     </p>
     <ul>
-        <li><code>true</code> — generate the full sample, including controllers, repositories, DTOs, entities, mappers, action trees, and Blazor pages. The sample also demonstrates each way to supply a mapper — source-generated with no code, source-generated with fluent configuration, a <code>[ShiftEntityMapper]</code> partial class, and a hand-written one. <b>Recommended for your first project.</b></li>
+        <li><code>true</code> — generate the full sample, including controllers, repositories, DTOs, entities, mappers, action trees, and Blazor pages. The sample also demonstrates each way to supply a mapper — fully automatic with no code, automatic with one map customized in the project's mapper class, and a hand-written one. <b>Recommended for your first project.</b></li>
         <li><code>false</code> — generate a clean skeleton with only the framework wiring (Program.cs, DbContext, identity setup) and no business code. Pick this when you already understand the framework and want a blank canvas.</li>
     </ul>
 
@@ -34,6 +35,14 @@
         <li><code>Internal</code> — ShiftIdentity runs <b>inside</b> the same API process as your app. Identity tables live in the same database, identity endpoints (<code>/IdentityPublicUser</code>, the dashboard, etc.) are exposed by your API, and there's nothing else to deploy. <b>This is the right choice for almost every new project.</b></li>
         <li><code>External</code> — your app does <b>not</b> host identity. It expects a separate ShiftIdentity instance to authenticate against. Pick this only when you already run a central ShiftIdentity that multiple downstream apps share. You'll also need to set <code>--externalShiftIdentityApi</code> and <code>--externalShiftIdentityFrontEnd</code> below.</li>
     </ul>
+
+    <DocCallout Type="DocCalloutType.Note">
+        On template <b>2026.10.10.2 and earlier</b>, only <code>--includeSampleApp true</code>
+        with <code>--shiftIdentityHostingType Internal</code> builds: the other combinations
+        fail in the Web project with CS0103 or CS0234. Newer releases fix this
+        (checked on <b>2026.10.15.1</b>). If you hit it, update the template
+        (see <MudLink Href="/get-started/installation">Installation</MudLink>) and scaffold again.
+    </DocCallout>
 
     <DocCallout Type="DocCalloutType.Tip">
         If you're not sure, choose <code>Internal</code>. You can always migrate to
@@ -61,27 +70,35 @@
     <p><b>Type:</b> boolean &nbsp;&nbsp; <b>Default:</b> <code>false</code></p>
     <p>
         Adds an xUnit integration test project (<code>YourApp.Test</code>) that
-        spins up a real in-memory database and exercises your repositories and
-        controllers end-to-end. Useful for projects that take testing seriously
-        from day one.
+        starts your API in-process and exercises your repositories and endpoints
+        end-to-end against a <b>real SQL Server database</b>. Useful for projects
+        that take testing seriously from day one.
+    </p>
+    <p>
+        The tests need <b>SQL Server Express</b> at <code>localhost\sqlexpress</code>
+        (the connection string is in the test project's <code>appsettings.json</code>);
+        each run deletes and recreates a <code>YourApp_Test</code> database there.
+        LocalDB is not enough without changing that connection string.
     </p>
 
     <h3><code>--externalShiftIdentityApi</code></h3>
-    <p><b>Type:</b> string &nbsp;&nbsp; <b>Default:</b> <code>""</code> (empty)</p>
+    <p><b>Type:</b> string &nbsp;&nbsp; <b>Default:</b> <code>http://localhost:5069</code></p>
     <p>
-        <b>Only used when <code>--shiftIdentityHostingType External</code>.</b>
+        <b>Set it when <code>--shiftIdentityHostingType External</code>.</b>
         Base URL of your external ShiftIdentity API, for example
-        <code>https://identity.example.com</code>. Gets baked into the generated
-        <code>appsettings.json</code> as the <code>ShiftIdentityApi</code> value.
+        <code>https://identity.example.com</code>. It is written to the Web project's
+        <code>wwwroot/appsettings.Development.json</code> as <code>ShiftIdentityApi</code>,
+        with <code>/api/</code> appended. Leave it unset for <code>Internal</code> hosting:
+        the app's own local URL is used.
     </p>
 
     <h3><code>--externalShiftIdentityFrontEnd</code></h3>
-    <p><b>Type:</b> string &nbsp;&nbsp; <b>Default:</b> <code>""</code> (empty)</p>
+    <p><b>Type:</b> string &nbsp;&nbsp; <b>Default:</b> <code>http://localhost:5069</code></p>
     <p>
-        <b>Only used when <code>--shiftIdentityHostingType External</code>.</b>
+        <b>Set it when <code>--shiftIdentityHostingType External</code>.</b>
         Base URL of the external ShiftIdentity frontend (the dashboard/login UI).
-        Often the same host as the API. Gets baked into the generated
-        <code>appsettings.json</code> as the <code>ShiftIdentityFrontEnd</code> value.
+        Often the same host as the API. It is written to the same file as
+        <code>ShiftIdentityFrontEnd</code>.
     </p>
 </DocSection>
 
@@ -106,19 +123,11 @@
 
     <h3>Production-ready starting point with tests and background jobs</h3>
     <p>The same as above, plus the test project and Functions project:</p>
-    <pre><code class="language-bash">dotnet new shift -n MyApp \
-    --includeSampleApp true \
-    --shiftIdentityHostingType Internal \
-    --addFunctions true \
-    --addTest true</code></pre>
+    <DocSnippet Name="ScaffoldWithFunctionsAndTests" Language="bash" />
 
     <h3>Empty skeleton, no sample, external identity</h3>
     <p>For when you already understand the framework and have a central identity service:</p>
-    <pre><code class="language-bash">dotnet new shift -n MyApp \
-    --includeSampleApp false \
-    --shiftIdentityHostingType External \
-    --externalShiftIdentityApi https://identity.example.com \
-    --externalShiftIdentityFrontEnd https://identity.example.com</code></pre>
+    <DocSnippet Name="ScaffoldSkeletonExternalIdentity" Language="bash" />
 </DocSection>
 
 <DocSection Title="What's next">
