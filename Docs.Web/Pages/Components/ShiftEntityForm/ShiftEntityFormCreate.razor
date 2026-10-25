@@ -1,0 +1,28 @@
+@using Docs.Shared.Customers
+@using ShiftSoftware.ShiftBlazor.Enums
+
+<ShiftEntityForm @bind-Value="_customer"
+                 Endpoint="Customer"
+                 Title="New customer"
+                 TypeAuthAction="null"
+                 OnSaveAction="FormOnSaveAction.ResetFormOnSave">
+
+    <MudTextFieldExtended Label="Name"
+                          @bind-Value="context.Item.Name"
+                          For="@(() => context.Item.Name)" />
+
+    <MudSelectExtended T="string"
+                       Label="Avatar"
+                       @bind-Value="context.Item.AvatarIcon"
+                       For="@(() => context.Item.AvatarIcon)">
+        <MudSelectItem Value="@Icons.Material.Filled.Person">Person</MudSelectItem>
+        <MudSelectItem Value="@Icons.Material.Filled.Face">Face</MudSelectItem>
+        <MudSelectItem Value="@Icons.Material.Filled.Star">Star</MudSelectItem>
+    </MudSelectExtended>
+
+</ShiftEntityForm>
+
+@code {
+    // No Key: the form opens in Create mode and POSTs to the endpoint.
+    private CustomerDTO _customer = new();
+}
