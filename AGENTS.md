@@ -1,6 +1,6 @@
-# CLAUDE.md
+# AGENTS.md
 
-This file provides guidance to Claude Code (and human contributors) when working in the ShiftFrameworkDocumentation repo.
+This file provides guidance to agents (and human contributors) when working in the ShiftFrameworkDocumentation repo.
 
 ## What This Repository Is
 
@@ -25,17 +25,6 @@ dotnet run --project Docs.API
 ```
 
 **Always run `Docs.API`, not `Docs.Web` directly.** `Docs.API` is the ASP.NET Core host that includes the Blazor WASM dev server. Running `Docs.Web` standalone is not the team's workflow and will not give you the full experience (no API for live demos, etc.).
-
-## Active Plan
-
-**Single source of truth for ongoing documentation work:** `.shift/repos/shift-framework-documentation/PLAN.md` (in the `.shift` repo).
-
-Always check the plan before starting work to see current status, decisions, open questions, and known issues. Update it whenever:
-- A workstream item is completed.
-- A decision is made on an open question.
-- Scope changes.
-
-The plan lives in `.shift` (centralized across repos) rather than in this repo. See `.shift/CLAUDE.md` for how the cross-repo knowledge base is organized.
 
 ## Authoring Documentation Pages
 
@@ -137,7 +126,7 @@ SnippetGen extracts the body of the never-called function just fine. The doc pag
 - For database verification, use a unique DB name per run (`DB_NAME="MyFirstShiftAppVerify_$(date +%s)"`) and drop it on exit so reruns are reproducible.
 - Override config via environment variables (`ConnectionStrings__SQLServer=...`, `ASPNETCORE_ENVIRONMENT=Development`) rather than editing the scaffolded files — keeps the user's natural flow uncontaminated.
 
-A future Tier 3 will run these scripts in CI on every PR. For now the contract is: scripts in `Docs.Verify/` are manually verified by Claude before a page is marked Reviewed, and the doc only shows what they contain.
+A future Tier 3 will run these scripts in CI on every PR. For now the contract is: scripts in `Docs.Verify/` are manually verified by an agent before a page is marked Reviewed, and the doc only shows what they contain.
 
 ### Page Status
 
