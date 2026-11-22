@@ -1,0 +1,206 @@
+@page "/guides/identity-sqlite"
+
+<DocPageMeta Title="ShiftIdentity on SQLite and the seed"
+             Section="Guides"
+             Order="60"
+             Status="DocPageStatus.Draft"
+             Description="Host ShiftIdentity on SQLite for development and tests, fill it with SeedShiftIdentitySqliteAsync from C# or JSON, and replace the removed fake identity endpoints."
+             Keywords="shiftidentity,sqlite,seed,seeding,SeedShiftIdentitySqliteAsync,identity seed,json,development,tests,fake identity,AddFakeIdentityEndPoints" />
+
+<DocSection Title="What you get">
+    <p>
+        An app that hosts ShiftIdentity (internal hosting) runs on SQLite like any other Shift Framework app: register
+        SQLite and create the schema as described in <a href="/guides/sqlite">SQLite for development and tests</a>.
+        Sign-in, multi-factor authentication, password changes and the identity dashboard all work on SQLite, in
+        memory or in a file. ShiftIdentity adapts its own tables to SQLite; you write nothing for that.
+    </p>
+    <p>
+        To fill the database, call <code>SeedShiftIdentitySqliteAsync</code>. It writes countries, companies,
+        branches, users and the rest from a C# object or a JSON file, so the app can be signed in to as soon as it
+        starts.
+    </p>
+</DocSection>
+
+<DocSection Title="What is different on SQLite">
+    <ul>
+        <li>
+            <strong>The schema must exist before the app starts.</strong> If an identity table is missing, the app
+            stops at startup with a message that names the missing tables and says to call <code>EnsureCreated</code>
+            before <code>app.Run()</code>.
+        </li>
+        <li>
+            <strong>Simultaneous requests for one user.</strong> On SQL Server, two sign-ins of the same user at the
+            same moment wait for each other. On SQLite the second one may be refused with <code>409 Conflict</code>
+            instead; the client can try again. Requests for different users are not affected.
+        </li>
+        <li>
+            <strong>Table names.</strong> ShiftIdentity's tables are in the <code>ShiftIdentity</code> schema on SQL
+            Server. SQLite has no schemas, so they are named <code>ShiftIdentity_Users</code>,
+            <code>ShiftIdentity_Brands</code> and so on.
+        </li>
+    </ul>
+</DocSection>
+
+<DocSection Title="Seed from C#">
+    <p>
+        Call the seed after <code>EnsureCreated</code> and before <code>app.Run()</code>. It has no condition of its
+        own: put it inside your own <code>if</code> for the environments that should be seeded.
+    </p>
+
+    <DocCodeBlock Language="csharp" Code="@(@"using ShiftSoftware.ShiftIdentity.Dashboard.AspNetCore.Extentsions;
+using ShiftSoftware.ShiftIdentity.Data.Seeding;
+
+var app = builder.Build();
+
+await using (var scope = app.Services.CreateAsyncScope())
+    await scope.ServiceProvider.GetRequiredService<DB>().Database.EnsureCreatedAsync();
+
+if (app.Environment.IsDevelopment())
+    await app.SeedShiftIdentitySqliteAsync(new IdentitySeedData
+    {
+        Countries = [new() { Key = ""iq"", Name = ""Iraq"", ShortCode = ""IQ"", CallingCode = ""+964"" }],
+        Regions = [new() { Key = ""krg"", Name = ""Kurdistan"", Country = ""iq"" }],
+        Cities = [new() { Key = ""erbil"", Name = ""Erbil"", Region = ""krg"" }],
+        Companies = [new() { Key = ""acme"", Name = ""Acme"" }],
+        CompanyBranches = [new() { Key = ""erbil-hq"", Name = ""Erbil HQ"", Company = ""acme"", City = ""erbil"" }],
+        AccessTrees = [new() { Key = ""admin"", Name = ""Admin"", FullAccess = true }],
+        Users =
+        [
+            new() { Username = ""admin"", Password = ""OneTwo"", FullName = ""Admin"", CompanyBranch = ""erbil-hq"", AccessTrees = [""admin""] },
+        ],
+    });
+
+app.Run();")" />
+
+    <p>
+        A record names another record of the same seed by its <code>Key</code>; users are named by their
+        <code>Username</code>. A key is only a name inside the seed and is not stored.
+    </p>
+</DocSection>
+
+<DocSection Title="Seed from JSON">
+    <p>
+        The second overload takes JSON of exactly the same shape. Property names may use any case, enums are written
+        by name, and an access tree is a JSON object.
+    </p>
+
+    <DocCodeBlock Language="csharp" Code="@(@"if (app.Environment.IsEnvironment(""Test""))
+    await app.SeedShiftIdentitySqliteAsync(await File.ReadAllTextAsync(""identity-seed.test.json""));")" />
+
+    <DocCodeBlock Language="json" Code="@(@"{
+  ""countries"":       [{ ""key"": ""iq"", ""name"": ""Iraq"", ""shortCode"": ""IQ"", ""callingCode"": ""+964"" }],
+  ""regions"":         [{ ""key"": ""krg"", ""name"": ""Kurdistan"", ""country"": ""iq"" }],
+  ""cities"":          [{ ""key"": ""erbil"", ""name"": ""Erbil"", ""region"": ""krg"" }],
+  ""companies"":       [{ ""key"": ""acme"", ""name"": ""Acme"", ""companyType"": ""NotSpecified"" }],
+  ""brands"":          [{ ""key"": ""toyota"", ""name"": ""Toyota"" }],
+  ""companyBranches"": [{ ""key"": ""erbil-hq"", ""name"": ""Erbil HQ"", ""company"": ""acme"", ""city"": ""erbil"", ""brands"": [""toyota""] }],
+  ""teams"":           [{ ""key"": ""support"", ""name"": ""Support"", ""company"": ""acme"", ""companyBranches"": [""erbil-hq""] }],
+  ""accessTrees"":     [{ ""key"": ""admin"", ""name"": ""Admin"", ""fullAccess"": true },
+                      { ""key"": ""viewer"", ""name"": ""Viewer"", ""tree"": { ""MyActionTree"": [1] } }],
+  ""apps"":            [{ ""appId"": ""my-app"", ""displayName"": ""My App"", ""redirectUri"": ""http://localhost:5234/Auth/Token"" }],
+  ""users"":           [{ ""username"": ""admin"", ""password"": ""OneTwo"", ""fullName"": ""Admin"", ""email"": ""admin@example.com"",
+                        ""companyBranch"": ""erbil-hq"", ""accessTrees"": [""admin""], ""teams"": [""support""] }]
+}")" />
+</DocSection>
+
+<DocSection Title="Seed rules">
+    <ul>
+        <li>
+            <strong>What can be seeded:</strong> countries, regions, cities, companies (with a parent company), brands,
+            departments, services, company branches (with their brands, departments and services), teams (with their
+            branches and users), access trees, apps, users and company calendars. The security tables that sign-in
+            fills as it is used are not seeded; each new user gets its security row from the seed, so it can sign in
+            at once.
+        </li>
+        <li>
+            <strong>Sign-in needs a branch.</strong> Every user needs <code>CompanyBranch</code> and every branch needs
+            <code>City</code>: a session carries the user's company, region and branch, and the region comes from the
+            branch's city. A user's company, region and country are taken from the branch.
+        </li>
+        <li>
+            <strong>Passwords:</strong> <code>Password</code>, hashed when the seed runs, or <code>PasswordHash</code>
+            and <code>Salt</code>. A new user needs one of them.
+        </li>
+        <li>
+            <strong>Access trees:</strong> <code>FullAccess = true</code> grants full access to every action tree the
+            app registers. Otherwise give <code>Tree</code>: a JSON object in JSON, a JSON string in C#.
+        </li>
+        <li>
+            <strong>IDs:</strong> any record may have an <code>ID</code>, which is kept. Rows without one get the next
+            free ID.
+        </li>
+        <li>
+            <strong>Existing rows</strong> (a database in a file, seeded before): a record matches a row by
+            <code>ID</code> when it has one, otherwise by username for users, app ID for apps, integration ID when
+            given, and otherwise by name within its parent (a region within its country, a branch within its company).
+            A matched row is left as it is. Set <code>UpdateExisting = true</code> on the seed to update matched rows
+            to the seed's values instead. A list of links that a record leaves out, such as a branch's brands, is never
+            touched.
+        </li>
+        <li>
+            <strong>Several seeds.</strong> Calls run in the order you write them. A key is only known inside its own
+            seed, so to reference rows from an earlier seed, list them again: they match the existing rows and are left
+            alone.
+        </li>
+        <li>
+            <strong>All or nothing.</strong> Each call runs in one transaction. A mistake in the seed (an unknown key,
+            a duplicate, a missing required value, an unknown JSON property) throws <code>IdentitySeedException</code>
+            listing every problem, and nothing is written.
+        </li>
+        <li>
+            <strong>SQLite only.</strong> On any other database the seed writes nothing, logs a warning and returns a
+            result with <code>Skipped = true</code>, so one <code>Program.cs</code> can use SQLite in development and
+            SQL Server in production. SQL Server apps keep using <code>SeedDBAsync</code>.
+        </li>
+    </ul>
+</DocSection>
+
+<DocSection Title="Replacing the fake identity endpoints">
+    <p>
+        <code>AddFakeIdentityEndPoints</code> has been removed from ShiftIdentity. It answered the identity endpoints
+        with one configured user and no database. Its replacement is the real identity on SQLite, seeded with the
+        same user, app and access tree. Keep the identity registration your project already has (a project created
+        with <code>dotnet new shift</code> registers it with <code>AddShiftIdentityDashboard</code> and maps it with
+        <code>MapShiftIdentityDashboard</code>), switch its <code>DbContext</code> to SQLite, and seed:
+    </p>
+
+    <DocCodeBlock Language="csharp" Code="@(@"// Before
+mvcBuilder.AddFakeIdentityEndPoints(tokenSettings,
+    new TokenUserDataDTO { ID = ""1"", Username = ""demo"", FullName = ""Demo"" },
+    new AppDTO { AppId = ""menu-demo"", DisplayName = ""Menu Demo"", RedirectUri = ""http://localhost:5234/Auth/Token"" },
+    ""OneTwo"",
+    [@""{ """"ShiftIdentityActions"""": [1,2,3,4], """"MenuActionTree"""": [1,2,3,4] }""]);
+
+// After
+builder.Services.AddDbContext<DB>(x => x.UseSqlite(""Data Source=MenuDemo;Mode=Memory;Cache=Shared""));
+// ... the identity registration, unchanged ...
+
+var app = builder.Build();
+await using (var scope = app.Services.CreateAsyncScope())
+    await scope.ServiceProvider.GetRequiredService<DB>().Database.EnsureCreatedAsync();
+
+if (app.Environment.IsDevelopment())
+    await app.SeedShiftIdentitySqliteAsync(new IdentitySeedData
+    {
+        Countries = [new() { Key = ""c"", Name = ""Demo Country"", CallingCode = ""+1"" }],
+        Regions = [new() { Key = ""r"", Name = ""Demo Region"", Country = ""c"" }],
+        Cities = [new() { Key = ""city"", Name = ""Demo City"", Region = ""r"" }],
+        Companies = [new() { Key = ""co"", Name = ""Demo Company"" }],
+        CompanyBranches = [new() { Key = ""b"", Name = ""Demo Branch"", Company = ""co"", City = ""city"" }],
+        AccessTrees = [new() { Key = ""all"", Name = ""Everything"", FullAccess = true }],
+        Apps = [new() { AppId = ""menu-demo"", DisplayName = ""Menu Demo"", RedirectUri = ""http://localhost:5234/Auth/Token"" }],
+        Users = [new() { ID = 1, Username = ""demo"", Password = ""OneTwo"", FullName = ""Demo"", CompanyBranch = ""b"", AccessTrees = [""all""] }],
+    });")" />
+
+    <p>Two things behave differently, on purpose:</p>
+    <ul>
+        <li>
+            <strong>The username must match.</strong> The fake signed in whatever username it was sent, as its one
+            configured user. The real identity signs in only the users that exist, with their own password.
+        </li>
+        <li>
+            <strong>An auth code needs a signed-in user.</strong> The fake issued an auth code for an app without a
+            session. The real identity issues one only to a user who is signed in.
+        </li>
+    </ul>
+</DocSection>

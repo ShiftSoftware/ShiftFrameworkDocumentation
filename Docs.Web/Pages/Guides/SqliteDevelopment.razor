@@ -1,0 +1,98 @@
+@page "/guides/sqlite"
+
+<DocPageMeta Title="SQLite for development and tests"
+             Section="Guides"
+             Order="50"
+             Status="DocPageStatus.Draft"
+             Description="Run a Shift Framework app on SQLite, in memory or in a file, so development and tests need no SQL Server: register SQLite, create the schema, and know what works differently."
+             Keywords="sqlite,in memory,database,development,tests,ensurecreated,shiftdbcontext,keep-alive,shared cache,sql server" />
+
+<DocSection Title="When to use it">
+    <p>
+        A Shift Framework app normally runs on SQL Server. For development and automated tests you can run the same
+        <code>DbContext</code> on SQLite instead, so nobody needs a SQL Server to start the app or run its tests.
+        SQLite is a real relational database: unique indexes, transactions and raw SQL behave as they do on SQL Server.
+    </p>
+    <p>
+        Which database runs in which environment is your choice, made in your own <code>AddDbContext</code> call. The
+        framework does not check the environment.
+    </p>
+
+    <DocCallout Type="DocCalloutType.Warning">
+        SQLite allows one writer at a time and runs in one process. That is fine for development and tests. Do not
+        use it for a production app that runs on several servers.
+    </DocCallout>
+</DocSection>
+
+<DocSection Title="Register SQLite">
+    <p>
+        Add the <code>Microsoft.EntityFrameworkCore.Sqlite</code> package to your API project and register your
+        <code>DbContext</code> with <code>UseSqlite</code> instead of <code>UseSqlServer</code>. Pick one of two
+        connection strings.
+    </p>
+
+    <DocCodeBlock Language="csharp" Code="@(@"// In memory: the data lives as long as the app and starts empty on every run.
+builder.Services.AddDbContext<DB>(x => x.UseSqlite(""Data Source=MyApp;Mode=Memory;Cache=Shared""));
+
+// In a file: the data is still there after a restart.
+builder.Services.AddDbContext<DB>(x => x.UseSqlite(""Data Source=myapp.db""));")" />
+
+    <p>
+        A SQLite database in memory disappears as soon as its last connection closes, and every request closes its
+        connection. So the first <code>ShiftDbContext</code> that opens a shared in-memory database keeps one extra
+        connection open until the app stops. You do not write anything for this.
+    </p>
+
+    <DocCallout Type="DocCalloutType.Note">
+        Use the shared form above: a name, <code>Mode=Memory</code> and <code>Cache=Shared</code>. With
+        <code>Data Source=:memory:</code>, or <code>Mode=Memory</code> without <code>Cache=Shared</code>, every
+        connection gets a new, empty database. The framework then logs a warning once for that connection string,
+        with the shared form to use.
+    </DocCallout>
+</DocSection>
+
+<DocSection Title="Create the schema">
+    <p>
+        Your migrations are written for SQL Server, so do not apply them to SQLite. Create the SQLite schema from the
+        model with <code>EnsureCreated</code>, after the app is built and before <code>app.Run()</code>. On a file it
+        does nothing when the tables already exist.
+    </p>
+
+    <DocCodeBlock Language="csharp" Code="@(@"var app = builder.Build();
+
+await using (var scope = app.Services.CreateAsyncScope())
+    await scope.ServiceProvider.GetRequiredService<DB>().Database.EnsureCreatedAsync();
+
+app.Run();")" />
+
+    <p>
+        A schema made by <code>EnsureCreated</code> is not migrated later. When the model changes, delete the file (or
+        restart, for a database in memory) and it is created again.
+    </p>
+</DocSection>
+
+<DocSection Title="What works differently">
+    <ul>
+        <li>
+            <strong>No history tables.</strong> SQLite has no temporal tables, so do not call <code>UseTemporal()</code>
+            on SQLite. Features that read an entity's history (revisions) need SQL Server.
+        </li>
+        <li>
+            <strong>No schemas.</strong> A table in a schema, such as ShiftIdentity's <code>ShiftIdentity.Users</code>,
+            is named <code>ShiftIdentity_Users</code> on SQLite, so it cannot collide with a table of yours with the
+            same name.
+        </li>
+        <li>
+            <strong>Duplicate keys.</strong> When a save breaks a unique index, the error you get is SQLite's own
+            message, not the friendlier message the framework writes for SQL Server.
+        </li>
+        <li>
+            <strong>Concurrent writes.</strong> Two requests that change the same row at the same moment are not
+            queued: the second one fails. On SQL Server some framework writes wait for each other instead.
+        </li>
+    </ul>
+
+    <p>
+        ShiftIdentity adds a little to this: see <a href="/guides/identity-sqlite">ShiftIdentity on SQLite and the seed</a>.
+    </p>
+</DocSection>
