@@ -1,0 +1,624 @@
+@page "/concepts/save-handlers"
+
+<DocPageMeta Title="Save handlers"
+             Section="Concepts"
+             Order="35"
+             Status="DocPageStatus.Draft"
+             Description="App code that runs at a stage of every save of a ShiftDbContext: before save, after save, before commit and after commit. How to write a handler, where to declare it, what it is given, and how to switch one off."
+             Keywords="save handler,IBeforeSaveHandler,IAfterSaveHandler,IBeforeCommitHandler,IAfterCommitHandler,before save,after save,before commit,after commit,transaction,trigger,hook,SuppressSaveHandler,Guard,NeedsOriginal,AfterCommit,AfterCommitException,SavedMessage,SavedWithFailure" />
+
+<DocSection Title="What a save handler is">
+    <p>
+        A save handler is a class of yours that the framework calls at one stage of a save. It runs for
+        <b>every</b> save of a <code>ShiftDbContext</code> that writes a row of its entity type: a
+        repository's save, a plain <code>SaveChanges</code> in a service or a function, a seeder's
+        save, and a save that another handler makes. It does not run for what goes around the context's
+        save: <code>ExecuteUpdate</code>, <code>ExecuteDelete</code> and raw SQL.
+    </p>
+
+    <p>
+        Use a handler for what is true of a record <b>whoever saves it</b>: a number on insert, a code
+        derived from other rows, a row that must be written with it, a message to another system once it
+        is committed. What needs the request (the DTO, the caller's permissions) stays in the
+        repository's <code>UpsertAsync</code> and <code>DeleteAsync</code>.
+    </p>
+</DocSection>
+
+<DocSection Title="The four stages">
+    <MudSimpleTable Dense="true" Outlined="true" Elevation="0" Class="my-4">
+        <thead>
+            <tr><th>Stage</th><th>Interface</th><th>When</th><th>Use it for</th><th>When it throws</th></tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>Before save</td>
+                <td><code>IBeforeSaveHandler&lt;T&gt;</code></td>
+                <td>Before anything is written. The audit columns of the rows are already stamped.</td>
+                <td>Checking and preparing records, adding related ones.</td>
+                <td>Nothing was written. The save call throws.</td>
+            </tr>
+            <tr>
+                <td>After save</td>
+                <td><code>IAfterSaveHandler&lt;T&gt;</code></td>
+                <td>After EF wrote the rows, inside the save's transaction.</td>
+                <td>A write that must succeed or fail with the save, such as one that needs the new ID.</td>
+                <td>The save is undone. The save call throws.</td>
+            </tr>
+            <tr>
+                <td>Before commit</td>
+                <td><code>IBeforeCommitHandler&lt;T&gt;</code></td>
+                <td>Once per transaction, just before it commits, over everything it saved.</td>
+                <td>A last check or a total over all the rows.</td>
+                <td>Nothing is committed. The call that commits throws.</td>
+            </tr>
+            <tr>
+                <td>After commit</td>
+                <td><code>IAfterCommitHandler&lt;T&gt;</code></td>
+                <td>Once the rows are committed. A transaction that rolls back calls nobody.</td>
+                <td>Telling other systems: a message, an email, a call to an API.</td>
+                <td>Nothing is undone, every other handler still runs, and the call that committed throws one <code>AfterCommitException</code>.</td>
+            </tr>
+        </tbody>
+    </MudSimpleTable>
+
+    <p>
+        <b>A call to another system belongs after commit.</b> An after-save handler runs before the
+        commit: a call made there holds the transaction open while it waits, and is not undone when the
+        transaction rolls back. The analyzer warns (<code>SHENT002</code>) when an after-save or a
+        before-commit handler takes an HTTP client, a Service Bus client or a message sender in its
+        constructor.
+    </p>
+
+    <p>
+        A handler is called <b>once with all its rows</b>, not once per row. <code>T</code> may be an
+        entity class, a base class or an interface: a handler for an interface gets every row that
+        implements it. One class may implement several stages and several entity types.
+    </p>
+</DocSection>
+
+<DocSection Title="Writing a handler">
+    <p>After commit, with the values from before the save:</p>
+
+    <DocCodeBlock Code="@(@"[NeedsOriginal]
+public sealed class ProductPriceFeed(IPriceFeed feed) : IAfterCommitHandler<Product>
+{
+    public async ValueTask AfterCommitAsync(SavedRows<Product> rows, CancellationToken cancellationToken)
+    {
+        var changes = new List<PriceChange>();
+
+        foreach (var row in rows)
+            if (row.Change == RowChange.Modified && row.Original!.Price != row.Entity.Price)
+                changes.Add(new PriceChange(row.Entity.ID, row.Entity.Name, row.Original.Price, row.Entity.Price));
+
+        if (changes.Count > 0)
+            await feed.PublishAsync(changes, cancellationToken);
+    }
+}")" />
+
+    <p>After save, with a second write in the same transaction:</p>
+
+    <DocCodeBlock Code="@(@"public sealed class ProductCategoryCode : IAfterSaveHandler<ProductCategory>
+{
+    public async ValueTask AfterSaveAsync(SavedRows<ProductCategory> rows, CancellationToken cancellationToken)
+    {
+        var coded = false;
+
+        foreach (var row in rows)
+        {
+            if (row.Change != RowChange.Added || !string.IsNullOrWhiteSpace(row.Entity.Code))
+                continue;
+
+            row.Entity.Code = $""CAT-{row.Entity.ID:D5}"";   // the ID exists only now
+            coded = true;
+        }
+
+        if (coded)
+            await rows.Db.SaveChangesAsync(cancellationToken);   // joins the transaction of the save it follows
+    }
+}")" />
+
+    <p>Before commit, a rule over everything the transaction wrote:</p>
+
+    <DocCodeBlock Code="@(@"public sealed class NoDraftProductsOnInvoices : IBeforeCommitHandler<InvoiceLine>
+{
+    public async ValueTask BeforeCommitAsync(SavedRows<InvoiceLine> rows, CancellationToken cancellationToken)
+    {
+        var products = rows.Where(row => row.Change != RowChange.Deleted && !row.Entity.IsDeleted)
+            .Select(row => row.Entity.ProductID).Distinct().ToList();
+
+        if (products.Count == 0)
+            return;
+
+        // A line has the ID of its product and not the product, so whether that is a draft is read here, inside the
+        // transaction.
+        var drafts = await ((DB)rows.Db).Products
+            .Where(product => products.Contains(product.ID) && product.IsDraft)
+            .Select(product => product.Name).Distinct().ToListAsync(cancellationToken);
+
+        if (drafts.Count > 0)
+            throw new ShiftEntityException(new Message(""Draft product"", $""An invoice cannot have a line for a draft product: {string.Join("", "", drafts)}.""));
+    }
+}")" />
+</DocSection>
+
+<DocSection Title="Before save, with a lock: the next number">
+    <p>
+        A number that must not be given twice is read under a lock that is held until the commit.
+        <code>rows.TakeLockAsync(name)</code> takes one: from there until the transaction ends, every other transaction that
+        asks for the same name waits. In a before-save handler it opens the save's transaction first, unless the caller
+        already has one, so the lock, the read and the insert are one transaction.
+    </p>
+
+    <DocCodeBlock Code="@(@"public sealed class InvoiceNumbering : IBeforeSaveHandler<Invoice>
+{
+    public async ValueTask BeforeSaveAsync(PendingRows<Invoice> rows, CancellationToken cancellationToken)
+    {
+        var added = rows.Where(row => row.Change == RowChange.Added).Select(row => row.Entity);
+
+        // In a fixed order, so that two saves that number several companies do not wait for each other.
+        foreach (var company in added.GroupBy(invoice => invoice.CompanyID).OrderBy(company => company.Key))
+        {
+            // One transaction at a time numbers the invoices of a company, until it commits.
+            await rows.TakeLockAsync($""InvoiceNo:{company.Key}"", cancellationToken);
+
+            // The last number is the table's, or the one this save gave out in an earlier round: those invoices are not
+            // written yet.
+            var kept = (typeof(InvoiceNumbering), company.Key);
+            var last = Math.Max(
+                await LastNumberAsync((DB)rows.Db, company.Key, cancellationToken),
+                rows.Items.TryGetValue(kept, out var given) ? (long)given! : 0);
+
+            foreach (var invoice in company)
+                invoice.InvoiceNo = ++last;
+
+            rows.Items[kept] = last;
+        }
+    }
+
+    private static async Task<long> LastNumberAsync(DB db, long? companyId, CancellationToken cancellationToken) =>
+        await db.Invoices.IgnoreQueryFilters().Where(invoice => invoice.CompanyID == companyId)
+            .MaxAsync(invoice => (long?)invoice.InvoiceNo, cancellationToken) ?? 0;
+}")" />
+
+    <p>
+        <b>What the lock is.</b> It is on the name, not on rows. On SQL Server it is an application lock
+        (<code>sp_getapplock</code>) that the transaction owns. On SQLite it makes the transaction the one that can write,
+        and only one can at a time. On any other database the call throws, and so it does in a transaction with snapshot
+        isolation, which would not see what the last holder committed. A lock on the rows that were read
+        (<code>WITH (UPDLOCK, HOLDLOCK)</code> on the <code>MAX</code> query) is not a substitute: it deadlocks when a
+        series is still empty.
+    </p>
+
+    <p><b>The rules:</b></p>
+    <ul>
+        <li>Every piece of code that does the same work takes the same name. The lock holds back nobody else.</li>
+        <li>
+            Read what it protects after taking it, with a projection or <code>AsNoTracking</code>. A row the context has
+            loaded before keeps the values it had then.
+        </li>
+        <li>Take it each time. What is kept in <code>rows.Items</code> does not show that the lock is still held.</li>
+        <li>
+            Take several in one fixed order, such as sorted by name. Of two transactions that wait for each other the
+            server ends one wait, and that transaction must be rolled back.
+        </li>
+        <li>
+            Keep the transaction that holds it short. Another one waits a little less than its command timeout, and then
+            gets a <code>TimeoutException</code>.
+        </li>
+        <li>It goes with the transaction, so it is not for a run of many transactions.</li>
+    </ul>
+
+    <p>
+        <b>Outside a handler</b>, in a job or a service, begin a transaction and call
+        <code>db.Database.TakeLockAsync(name)</code>:
+    </p>
+
+    <DocCodeBlock Code="@(@"await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+
+// A second instance of the job waits here until this one has committed.
+await db.Database.TakeLockAsync(""ServiceReminders"", cancellationToken);
+
+await ImportAsync(db, cancellationToken);
+await transaction.CommitAsync(cancellationToken);")" />
+
+    <p>
+        <b>Inside a transaction of your own,</b> <code>TakeLockAsync</code> and <code>RequireTransactionAsync</code>, which
+        asks for the transaction without a lock, set the save's savepoint where they are called. When the save then fails,
+        the transaction is rolled back to that point: the save's write and whatever the handler wrote with SQL of its own
+        from then on are undone, the lock is given up, and your transaction can go on. SQL that a handler runs before it
+        asks is not covered. The context's own transaction rolls back whole.
+    </p>
+
+    <p>
+        <b>Where no savepoint can be set</b> (<code>MultipleActiveResultSets=True</code> on SQL Server, savepoints
+        switched off, or a <code>TransactionScope</code>), what the handler wrote cannot be undone alone. So a save that
+        fails after the handler asked, before its write as well as after it, leaves your transaction able only to roll
+        back: its commit throws, and a <code>TransactionScope</code> is rolled back.
+    </p>
+
+    <p>
+        <b>The last number is kept in <code>rows.Items</code>,</b> for the rounds of the save. A save that fails, and a
+        rollback to a savepoint, put the bag back as it was where they began, so the next save takes the numbers that were
+        given back, and none is left out.
+    </p>
+</DocSection>
+
+<DocSection Title="What a handler is given">
+    <MudSimpleTable Dense="true" Outlined="true" Elevation="0" Class="my-4">
+        <thead><tr><th>Member</th><th>What it is</th></tr></thead>
+        <tbody>
+            <tr><td><code>row.Entity</code></td><td>The record. After a delete, the instance the context no longer tracks.</td></tr>
+            <tr><td><code>row.Change</code></td><td><code>Added</code>, <code>Modified</code> or <code>Deleted</code>. A soft delete is a modified row, and <code>row.IsSoftDelete</code> says so.</td></tr>
+            <tr><td><code>row.Original</code></td><td>The values from before the save. Null for an added row, in every stage and for every handler. For a modified or a deleted row: before save it is always there; after the write only for a handler class marked <code>[NeedsOriginal]</code>, and any other handler gets an exception that says so.</td></tr>
+            <tr><td><code>row.Became(x =&gt; ...)</code></td><td>Whether the condition holds now and did not before this save.</td></tr>
+            <tr><td><code>rows.Db</code></td><td>The context that is saving. Read through it, save again where the stage allows it.</td></tr>
+            <tr><td><code>rows.Items</code></td><td>A bag shared by every handler and stage of what commits together. It is rolled back with the saves: a save that fails, and a rollback to a savepoint, put it back as it was where they began. The copy put back is shallow, so store values, or replace an object, rather than change one in place.</td></tr>
+            <tr><td><code>rows.Services</code></td><td>The services of the save: the scope the context came from, or what <code>AttachServices</code> gave it. For a handler whose only constructor takes nothing. A context without services gives a provider with nothing registered, so <code>GetService</code> returns null there. A context from a pool or a factory gives the root provider until <code>AttachServices</code>.</td></tr>
+            <tr><td><code>rows.TakeLockAsync(name)</code></td><td>Takes a lock on a name until the save's transaction ends. Before save it asks for the transaction first. After the commit it throws.</td></tr>
+            <tr><td><code>rows.IsRepositorySave</code> (before save)</td><td>Whether a repository's <code>SaveChangesAsync</code> started the save.</td></tr>
+            <tr><td><code>rows.Entry(row)</code> (before save)</td><td>EF's entry, for property-level questions.</td></tr>
+            <tr><td><code>rows.RequireTransactionAsync()</code> (before save)</td><td>From here on, what the handler reads and writes, the write and everything after it are one transaction.</td></tr>
+            <tr><td><code>rows.IsSwitchedOff(stages)</code> (before save)</td><td>Whether a switch keeps this save's rows from this handler in the named stages. A handler that hands something on to its own after-commit stage asks it, and hands nothing on when that stage will not get the rows.</td></tr>
+        </tbody>
+    </MudSimpleTable>
+
+    <p>
+        <b>Keep state in <code>rows.Items</code>, not in fields.</b> A handler that is only declared, with the context
+        or a module, is a new instance for each stage call. One that the host registers (<code>AddSaveHandler</code>
+        registers it as scoped) is one instance per scope, across stages and saves. State in fields would behave
+        differently depending on where the handler is declared.
+    </p>
+
+    <p>
+        <b>Before save runs in rounds.</b> A handler may change its rows and add, change or remove other
+        tracked rows. Those are offered to the handlers of their own type in the next round. A row is
+        offered once per save for each kind of change, and a save whose handlers still produce rows after
+        16 rounds throws. A before-save handler may not call <code>SaveChanges</code>: the save in
+        progress is about to write the tracked rows.
+    </p>
+
+    <p>
+        <b>After the write a handler may save.</b> An after-save handler's save joins the transaction. An
+        after-commit handler's save is a new one, with its own commit. A handler is not called again for
+        a record it is being called for.
+    </p>
+
+    <p>
+        <b>Before commit and after commit get one row per record</b> for everything that commits together, however
+        many saves of the transaction wrote it. A record added and then changed arrives as added, which is what an email
+        about a new record wants. One added and then deleted does not arrive at all. One changed twice arrives as
+        modified, with the values from before the first save.
+    </p>
+
+    <p>
+        <b>Deleted rows reach every stage, after commit included.</b> A handler that tells another system about new or
+        changed records skips them:
+    </p>
+
+    <DocCodeBlock Code="@(@"foreach (var row in rows)
+{
+    if (row.Change == RowChange.Deleted)
+        continue;
+
+    await push.SendAsync(row.Entity.ID, cancellationToken);
+}")" />
+</DocSection>
+
+<DocSection Title="Declaring a handler">
+    <p>There are three places. The first two travel with the model, so every host that saves the type has the handler.</p>
+
+    <DocCodeBlock Code="@(@"// 1. With the context: handlers that belong to the data.
+public class DB : ShiftDbContext
+{
+    protected override void ConfigureSaveHandlers(SaveHandlerSet handlers)
+    {
+        base.ConfigureSaveHandlers(handlers);
+
+        handlers
+            .Add<InvoiceNumbering>()
+            .Add<ProductCategoryCode>()
+            .Add<NoDraftProductsOnInvoices>();
+    }
+}
+
+// 2. With a module that contributes entity types to a host's context, next to its model.
+public sealed class WarehouseModel : IModelBuildingContributor
+{
+    public void Configure(ModelBuilder modelBuilder) { /* ... */ }
+
+    public void ConfigureSaveHandlers(SaveHandlerSet handlers) => handlers.Add<StockMovementLedger>();
+}
+
+// 3. With the host, for a handler that belongs to one host (it needs a service only that host has).
+builder.Services.AddSaveHandler<ProductPriceFeed>();")" />
+
+    <ul>
+        <li>Handlers of a stage run by their <code>order</code> (the second argument, 0 by default), then the context's, the modules', the host's.</li>
+        <li>An open generic class with one type parameter (<code>typeof(ChangeLog&lt;&gt;)</code>) is a handler for every entity type that fits its constraints.</li>
+        <li>A handler is created from the saving context's services, so its constructor is injected as usual. The same class declared twice is one handler.</li>
+        <li>
+            A context that did not come from a DI scope (a pool, a factory, <code>new</code>) has no scope to create a
+            handler in. Give it one with <code>db.AttachServices(scope.ServiceProvider)</code>. Without it, a save of a
+            row whose handler takes services is refused: the handler is never skipped silently.
+        </li>
+        <li>
+            <b>A handler whose only constructor takes nothing needs no services.</b> It is created with
+            <code>new</code> and runs on any context, also one that a tool, a seeder or a test builds by hand. What it
+            needs it asks of <code>rows.Services</code>, when it needs it.
+        </li>
+    </ul>
+
+    <p>
+        A handler declared with the context is there for <b>every</b> context of that type, so write it to take
+        nothing when it guards the data and has to hold for tools and seeders as well:
+    </p>
+
+    <DocCodeBlock Code="@(@"[Guard]
+public sealed class ClosedPeriods : IBeforeSaveHandler<Invoice>
+{
+    public ValueTask BeforeSaveAsync(PendingRows<Invoice> rows, CancellationToken cancellationToken)
+    {
+        // No constructor parameters: the context creates it with new. It asks the save for what it needs,
+        // and a host that has no closed periods has nothing to enforce.
+        if (rows.Services.GetService<IClosedPeriods>() is not { } periods)
+            return ValueTask.CompletedTask;
+
+        foreach (var row in rows)
+            if (periods.IsClosed(row.Entity.CreateDate))
+                throw new ShiftEntityException(new Message(""Closed period"", ""The period of this invoice is closed.""));
+
+        return ValueTask.CompletedTask;
+    }
+}")" />
+</DocSection>
+
+<DocSection Title="Switching handlers off">
+    <p>
+        Each switch is a scope. It applies to the saves that start inside it, and to those saves' rows through to the
+        commit. Scopes nest and may end in any order: a switch is off again once every scope of it has ended.
+    </p>
+
+    <MudSimpleTable Dense="true" Outlined="true" Elevation="0" Class="my-4">
+        <thead><tr><th>Switch</th><th>What it switches off</th></tr></thead>
+        <tbody>
+            <tr><td><code>db.SuppressSaveHandler&lt;THandler&gt;()</code></td><td>One handler, in every stage it implements. This is the one to reach for.</td></tr>
+            <tr><td><code>db.SuppressSaveHandlers(SaveStages.AfterCommit)</code></td><td>Every handler in the named stages, except guards.</td></tr>
+            <tr><td><code>db.SuppressAllSaveHandlers()</code></td><td>Every handler in every stage, except guards. The framework's own parts still run.</td></tr>
+            <tr><td><code>db.SuppressAfterCommit()</code></td><td>"Tell nobody about this save": after-commit handlers, replication's syncs, notification and attention events. What keeps the data right still runs.</td></tr>
+        </tbody>
+    </MudSimpleTable>
+
+    <DocCodeBlock Code="@(@"using (db.SuppressSaveHandler<ProductPriceFeed>())
+    await db.SaveChangesAsync();   // an import that must not flood the feed")" />
+
+    <p>
+        <b>Guards.</b> A handler that checks a save and can refuse it is marked <code>[Guard]</code>. The
+        blanket switches do not switch a guard off. Only code that names it does, with
+        <code>SuppressSaveHandler&lt;TGuard&gt;()</code>. ShiftIdentity's feature lock is one:
+        <code>SuppressSaveHandler&lt;FeatureLock&gt;()</code> is the only way past it.
+    </p>
+
+    <p>
+        ShiftIdentity's <code>UserVerificationSend</code> sends the verification link the User form asked for, once the
+        user is committed. A save under <code>SuppressSaveHandler&lt;UserVerificationSend&gt;()</code>, or under a switch
+        of the after-commit stage, sends nothing, and no later save sends it. So does a save under
+        <code>SuppressSaveHandlers(SaveStages.BeforeSave)</code>: the send travels through the handler's before-save
+        stage, so the after-commit stage, which that switch leaves on, never gets it.
+    </p>
+
+    <p>
+        A user saved twice in one transaction, with a link asked each time, gets one link at the commit: the one asked
+        last, to the address that was committed. Every link of a commit is attempted, also when one of them fails, and
+        the failures reach the caller in the <code>AfterCommitException</code>.
+    </p>
+</DocSection>
+
+<DocSection Title="Work after the commit, written by hand">
+    <p>
+        <code>db.AfterCommit(...)</code> is the after-commit stage for code that is not a handler. The work
+        runs once the rows saved so far are committed, is awaited, and may use the context. A rollback
+        drops it.
+    </p>
+
+    <DocCodeBlock Code="@(@"db.AfterCommit(() => sender.SendAsync(order));")" />
+</DocSection>
+
+<DocSection Title="When a step after the commit fails">
+    <p>
+        The rows are saved, and nothing is undone. Every other step after the commit still runs. Then the call that
+        committed throws one <code>AfterCommitException</code>, whose <code>Failures</code> hold what each failed step
+        threw: <code>SaveChanges</code> for a save on its own, <code>Commit</code> for a transaction of yours.
+    </p>
+
+    <p>
+        <b>The CRUD endpoints answer such a save as saved:</b> 200 or 201, with the record. The response's message says
+        what failed, and its <code>Additional</code> carries <code>"SavedWithFailure": true</code>, so a client that is
+        not a person can tell "saved" from "saved, but" without reading text. Every failure is logged.
+    </p>
+
+    <p>
+        <b>An endpoint of your own answers the same way.</b> Catch the exception around the save, log the failures, and
+        answer as for a successful save. <code>saved.SavedMessage()</code> is the message: the first failure's own
+        message when it is a <code>ShiftEntityException</code>, which says what failed in words meant for the user, and
+        otherwise a general one, "Saved" with "The record was saved, but a follow-up step failed."
+    </p>
+
+    <DocCodeBlock Code="@(@"try
+{
+    await repository.SaveChangesAsync();
+}
+catch (AfterCommitException saved)
+{
+    foreach (var failure in saved.Failures)
+        logger.LogError(failure, ""The order was saved, but a step after the commit failed."");
+
+    response.Message = saved.SavedMessage();
+    response.Additional = new() { [ShiftEntityResponse.SavedWithFailure] = true };
+}")" />
+
+    <p>
+        <b>An endpoint that answers the bare record</b>, not a <code>ShiftEntityResponse</code>, keeps the record's own
+        fields at the top and adds both under <code>"Additional"</code>: <code>"SavedWithFailure": true</code> and the
+        <code>"Message"</code>. A caller that reads the record reads it as before. For an anonymous caller, pass
+        <code>includeFailureMessage: false</code>: the message is then always the general one, and nothing that your own
+        steps report reaches the caller.
+    </p>
+
+    <DocCodeBlock Code="@(@"var body = JsonSerializer.SerializeToNode(record)!.AsObject();
+
+body[""Additional""] = new JsonObject
+{
+    [ShiftEntityResponse.SavedWithFailure] = true,
+    [""Message""] = JsonSerializer.SerializeToNode(saved.SavedMessage(includeFailureMessage: false)),
+};")" />
+
+    <p>
+        <b>To test your <code>catch</code>,</b> have the stand-in for the save throw the exception the framework throws:
+        <code>new AfterCommitException(failures)</code>, with at least one failure.
+    </p>
+
+    <DocCodeBlock Code="@(@"var saved = new AfterCommitException([new ShiftEntityException(new Message(""Not sent"", ""The email could not be sent.""))]);
+
+Assert.Equal(""Not sent"", saved.SavedMessage().Title);
+Assert.Equal(""Saved"", saved.SavedMessage(includeFailureMessage: false).Title);")" />
+</DocSection>
+
+<DocSection Title="Transactions">
+    <ul>
+        <li>A save gets a transaction only when it needs one: for an after-save or a before-commit handler of its rows, or when a before-save handler asks. The context opens it and commits it.</li>
+        <li>Begin your own through the context: <code>db.Database.BeginTransaction()</code>. The context follows it, and the commit-time stages run in its <code>Commit</code>.</li>
+        <li>After a commit of your transaction that succeeded, a rollback does nothing, through the transaction or through <code>db.Database.RollbackTransaction()</code>. So the usual <code>try { commit } catch { rollback; throw; }</code> passes on the <code>AfterCommitException</code> of a step after the commit, also when that step saved, or began and ended a transaction of its own, before it failed. A transaction the context opens for one save is not yours: after such a save, with none of yours begun, <code>db.Database.RollbackTransaction()</code> throws as EF does.</li>
+        <li>A transaction the context cannot follow (<code>TransactionScope</code>, <code>UseTransaction</code>) is refused for a save that has work waiting for the commit, while nothing is written.</li>
+        <li>A save in a transaction that the database has already ended (a deadlock victim, an aborted batch) is refused, because what it writes would be committed on its own. Roll the transaction back, and start over in a new one.</li>
+        <li>With a retrying execution strategy, a save that needs the context's own transaction must run inside <code>strategy.Execute</code>, in a transaction you begin there.</li>
+        <li>EF's in-memory provider has no transactions: one begun there (with <code>TransactionIgnoredWarning</code> ignored) leaves the saved rows in place when it rolls back. The context still follows it, so its rollback drops what waited for its commit. A dry run that saves and rolls back can be tested there for what it sends, not for what it leaves in the data.</li>
+    </ul>
+</DocSection>
+
+<DocSection Title="When a save fails after its write">
+    <p>
+        An after-save or a before-commit handler that throws undoes the save in the database. But EF had accepted the
+        save's rows before that handler ran, so the context still shows them as saved, with their keys. A save on that
+        context would write nothing for them and report no error. So the context refuses every later save, with a
+        message that names one of those rows, until they are gone from its tracker.
+    </p>
+
+    <ul>
+        <li>To go on, call <code>db.ChangeTracker.Clear()</code>, detach every row of that save, or use a new context.</li>
+        <li>
+            Adding or changing the same instances again does not end the refusal. EF's <code>Add</code> of a tracked
+            instance changes that one entry alone: an order added again would be written without its lines, with no
+            error. The context cannot tell that every row of the save was given back, so it stays strict.
+        </li>
+        <li>
+            <b>A retry starts from a new context, or a cleared change tracker, on each attempt.</b> For a type with work
+            after the write, that is the only shape that works: EF's own retry shape for a transaction of yours,
+            <code>SaveChanges(acceptAllChangesOnSuccess: false)</code> and then <code>AcceptAllChanges()</code>, is
+            refused for such a type, and the context's own transaction is refused under a retrying execution strategy.
+        </li>
+    </ul>
+</DocSection>
+
+<DocSection Title="Coming from hooks, validators and triggers">
+    <MudSimpleTable Dense="true" Outlined="true" Elevation="0" Class="my-4">
+        <thead><tr><th>Before</th><th>Now</th></tr></thead>
+        <tbody>
+            <tr><td><code>IShiftEntityHasBeforeSaveHook&lt;T&gt;</code> on a repository</td><td><code>IBeforeSaveHandler&lt;T&gt;</code>, declared with the context</td></tr>
+            <tr><td><code>IShiftEntityHasAfterSaveHook&lt;T&gt;</code> on a repository</td><td><code>IAfterSaveHandler&lt;T&gt;</code> for a write that belongs to the save; <code>IAfterCommitHandler&lt;T&gt;</code> for a call to another system</td></tr>
+            <tr><td><code>IShiftEntitySaveValidator</code></td><td><code>IBeforeSaveHandler&lt;T&gt;</code> for the types it concerns, acting when <code>rows.IsRepositorySave</code>, marked <code>[Guard]</code></td></tr>
+            <tr><td>An EntityFrameworkCore.Triggered before-save trigger</td><td><code>IBeforeSaveHandler&lt;T&gt;</code></td></tr>
+            <tr><td>An EntityFrameworkCore.Triggered after-save trigger</td><td><code>IAfterCommitHandler&lt;T&gt;</code> when it tells another system; <code>IAfterSaveHandler&lt;T&gt;</code> when it writes something that belongs to the save</td></tr>
+        </tbody>
+    </MudSimpleTable>
+
+    <p>A handler is not a hook with a new name:</p>
+
+    <ul>
+        <li>It runs for every save of the type, not only a repository's, and for rows of derived types.</li>
+        <li>It also gets hard deletes (<code>RowChange.Deleted</code>).</li>
+        <li>It is called once with all rows.</li>
+        <li>It is the same in every host only when it is declared with the context or a module.</li>
+    </ul>
+
+    <p>
+        The framework no longer references EntityFrameworkCore.Triggered and no longer switches it on. A
+        host that still registers a trigger, or calls <code>UseTriggers</code> for a
+        <code>ShiftDbContext</code>, does not start, and the message names what it found. The check is part of
+        <code>AddShiftEntityWeb</code> and <code>AddShiftEntityFunctions</code>, so every API and every functions
+        host is checked.
+    </p>
+
+    <p>
+        Starting the host runs the check, before the host serves anything. So a test that builds and starts the host,
+        as the ASP.NET Core test host does, covers it, and a host that still has a trigger fails that test. A host that
+        is built and never started is not checked, though each context still checks its own options for
+        <code>UseTriggers</code> the first time it is created.
+    </p>
+
+    <p>
+        Four names changed with it: three of replication on save, which say "on save" where they said "trigger", and
+        one of ShiftIdentity, which is a guard and no longer a validator. There are no aliases:
+    </p>
+
+    <MudSimpleTable Dense="true" Outlined="true" Elevation="0" Class="my-4">
+        <thead><tr><th>Before</th><th>Now</th></tr></thead>
+        <tbody>
+            <tr><td><code>AddShiftEntityCosmosDbReplicationTrigger&lt;TDbContext&gt;(...)</code></td><td><code>AddShiftEntityCosmosDbReplicationOnSave&lt;TDbContext&gt;(...)</code></td></tr>
+            <tr><td><code>CosmosDbTriggerReplicateOperation&lt;T&gt;</code></td><td><code>CosmosDbOnSaveReplicationOperation&lt;T&gt;</code></td></tr>
+            <tr><td><code>CosmosDbTriggerReferenceOperations&lt;T&gt;</code></td><td><code>CosmosDbOnSaveReferenceOperations&lt;T&gt;</code></td></tr>
+            <tr><td><code>FeatureLockSaveValidator</code> (ShiftIdentity)</td><td><code>FeatureLock</code></td></tr>
+        </tbody>
+    </MudSimpleTable>
+
+    <p>
+        <code>AddShiftEntityCosmosDbReplication&lt;TDbContext&gt;()</code>, with no options, registers the replication
+        service that code runs itself, such as a catch-up. It keeps its name, and so do that service's own types,
+        <code>CosmosDbReplicationOperation&lt;DB, T&gt;</code> and <code>CosmosDbReferenceOperation&lt;DB, T&gt;</code>.
+    </p>
+</DocSection>
+
+<DocSection Title="Testing a handler">
+    <p>A handler is a plain class. <code>HandlerRows</code> builds its rows:</p>
+
+    <DocCodeBlock Code="@(@"var rows = HandlerRows.Saved(db,
+    new ChangedRow<Product>(product, RowChange.Modified, original: productAsItWas));
+
+await new ProductPriceFeed(feed).AfterCommitAsync(rows, CancellationToken.None);
+
+Assert.Single(feed.Published);")" />
+
+    <p>
+        To test that a handler is marked <code>[NeedsOriginal]</code> where it reads <code>Original</code>, build its
+        rows for the class: <code>HandlerRows.Saved&lt;ProductPriceFeed, Product&gt;(db, rows)</code>. Without the mark,
+        reading <code>Original</code> of a modified or a deleted row then throws, as in a real save.
+    </p>
+
+    <p>
+        Before save, <code>HandlerRows.Pending(db, rows)</code> builds the rows of any save, and
+        <code>HandlerRows.Pending(db, isRepositorySave: true, rows)</code> those of a repository's save, for a handler
+        that looks at <code>rows.IsRepositorySave</code>. A set gives the services of the context it was built with in
+        <code>rows.Services</code>: attach the ones the handler asks for, or leave the context bare to test what the
+        handler does without them.
+    </p>
+
+    <DocCodeBlock Code="@(@"db.AttachServices(scope.ServiceProvider);   // a host with closed periods
+
+var rows = HandlerRows.Pending(db, new ChangedRow<Invoice>(invoice, RowChange.Added));
+
+await Assert.ThrowsAsync<ShiftEntityException>(() =>
+    new ClosedPeriods().BeforeSaveAsync(rows, CancellationToken.None).AsTask());
+
+// ShiftIdentity's feature lock acts on repository saves only, so its test builds the rows of one.
+var ofARepository = HandlerRows.Pending(db, isRepositorySave: true, new ChangedRow<Team>(team, RowChange.Added));
+
+await Assert.ThrowsAsync<ShiftEntityException>(() =>
+    new FeatureLock().BeforeSaveAsync(ofARepository, CancellationToken.None).AsTask());")" />
+</DocSection>
+
+<DocSection Title="What's next">
+    <p>
+        The next page covers the
+        <MudLink Href="/concepts/mapping-abstraction">mapping abstraction</MudLink> —
+        how the repository translates between entities and DTOs.
+    </p>
+</DocSection>

@@ -5,7 +5,7 @@
              Order="30"
              Status="DocPageStatus.Draft"
              Description="How a request flows from the controller through the repository to the database and back, where business logic lives, and how audit fields and soft deletes happen automatically along the way."
-             Keywords="repository,shiftrepository,controller,upsert,find,savechanges,beforesave,aftersave,request lifecycle,business logic" />
+             Keywords="repository,shiftrepository,controller,upsert,find,savechanges,before save,after save,save handler,request lifecycle,business logic" />
 
 <DocSection Title="Where business logic lives">
     <p>
@@ -22,7 +22,7 @@
         base class. The base provides the standard CRUD methods
         (<code>FindAsync</code>, <code>UpsertAsync</code>, <code>DeleteAsync</code>,
         <code>ViewAsync</code>, <code>OdataList</code>) and the lifecycle plumbing
-        around them (audit fields, soft delete, transactions, hooks). Your job is
+        around them (audit fields, soft delete, transactions). Your job is
         to override what's specific to your entity and let the base handle the rest.
     </p>
 
@@ -31,7 +31,7 @@
 {
     public ProductRepository(DB db) : base(db) { }
 
-    // Most repositories add nothing else. Custom hooks go here when needed.
+    // Most repositories add nothing else.
 }")" />
 </DocSection>
 
@@ -71,11 +71,13 @@ public class ProductController : ShiftEntitySecureControllerAsync<
         <li><b>Auth check.</b> The controller's <code>Post</code> action calls <code>typeAuthService.CanWrite(action)</code> using the permission node from its constructor. If the current user can't write, it returns <code>403 Forbidden</code> immediately.</li>
         <li><b>UpsertAsync.</b> The controller delegates to the repository's <code>UpsertAsync</code>, passing a fresh empty entity, the incoming DTO, and the action type (<code>Insert</code> for POST, <code>Update</code> for PUT).</li>
         <li><b>MapToEntity.</b> Inside <code>UpsertAsync</code>, the repository's mapper merges the DTO into the entity the repository handed it and returns it. For inserts that entity is empty; for updates the existing row is loaded first and the DTO fields are merged into it. (The repository resolved that mapper once, in its constructor.)</li>
-        <li><b>Audit fields.</b> The repository calls <code>SetAuditFields</code>, populating <code>CreateDate</code>, <code>LastSaveDate</code>, <code>CreatedByUserID</code>, and <code>LastSavedByUserID</code> from the current user and current timestamp. You never write this code yourself.</li>
-        <li><b>BeforeSave hook (if defined).</b> If your repository implements <code>IShiftEntityHasBeforeSaveHook&lt;T&gt;</code>, the framework calls your <code>BeforeSaveAsync(entity, actionType)</code> method here. This is where you put validation that needs to run with the about-to-be-saved entity in hand (e.g. cross-field rules, derived calculations).</li>
-        <li><b>SaveChangesAsync.</b> The framework calls <code>db.SaveChangesAsync()</code>. EF Core issues the actual SQL <code>INSERT</code> or <code>UPDATE</code>.</li>
+        <li><b>SaveChangesAsync.</b> The controller calls the repository's <code>SaveChangesAsync</code>, and the context takes the save through its stages: steps 5 to 10.</li>
+        <li><b>Audit fields.</b> The context fills <code>CreateDate</code>, <code>LastSaveDate</code>, <code>CreatedByUserID</code>, and <code>LastSavedByUserID</code> from the current user and current timestamp. You never write this code yourself.</li>
+        <li><b>Before-save handlers (if any).</b> Your own code, before anything is written. This is where you put validation that needs the about-to-be-saved entity in hand (e.g. cross-field rules), and values derived from other fields.</li>
+        <li><b>The write.</b> EF Core issues the actual SQL <code>INSERT</code> or <code>UPDATE</code>.</li>
+        <li><b>After-save handlers (if any).</b> Your own code, inside the save's transaction: what it writes is committed together with the record, or not at all.</li>
         <li><b>ReloadAfterSave.</b> If the entity has <code>ReloadAfterSave = true</code> (typically because it has navigation properties that the View DTO needs), the framework re-queries the entity with all <code>Include</code>s resolved fresh, and copies the navigation data back onto the tracked instance.</li>
-        <li><b>AfterSave hook (if defined).</b> If your repository implements <code>IShiftEntityHasAfterSaveHook&lt;T&gt;</code>, the framework calls your <code>AfterSaveAsync(entity, actionType)</code>. This runs <b>inside an explicit transaction</b> (see below) so any side effects can roll back if they fail.</li>
+        <li><b>The commit, then after-commit handlers (if any).</b> Your own code that tells other systems: a message, an email, a call to an API. A save that rolls back tells nobody.</li>
         <li><b>ViewAsync.</b> The controller calls <code>ViewAsync(entity)</code> on the now-saved entity, which uses the mapper's <code>MapToView</code> to produce the response DTO.</li>
         <li><b>Wrap and return.</b> The DTO is wrapped in <code>ShiftEntityResponse&lt;T&gt;</code> (which adds metadata like the OData entity ID URL) and serialized as the HTTP response.</li>
     </ol>
@@ -101,56 +103,49 @@ public class ProductController : ShiftEntitySecureControllerAsync<
     </DocCallout>
 </DocSection>
 
-<DocSection Title="Hooks: BeforeSave and AfterSave">
+<DocSection Title="Your own code in a save">
     <p>
-        Most repositories don't need lifecycle hooks. The audit fields, soft
-        delete, and ReloadAfterSave flow happen automatically. But sometimes you
-        need to run code at a specific point — and the framework provides two
-        opt-in interfaces for that:
+        Most entities need none. The audit fields, soft delete, and
+        ReloadAfterSave flow happen automatically. But sometimes you need to run
+        code at a specific point of a save — and that is a <b>save handler</b>: a
+        small class of its own, for one stage of the save.
     </p>
 
-    <DocCodeBlock Code="@(@"public class ProductRepository
-    : ShiftRepository<DB, Product, ProductListDTO, ProductDTO>,
-      IShiftEntityHasBeforeSaveHook<Product>,
-      IShiftEntityHasAfterSaveHook<Product>
+    <DocCodeBlock Code="@(@"public sealed class ProductChecks : IBeforeSaveHandler<Product>
 {
-    public ProductRepository(DB db) : base(db) { }
-
-    public ValueTask BeforeSaveAsync(Product entity, ActionTypes action)
+    public ValueTask BeforeSaveAsync(PendingRows<Product> rows, CancellationToken cancellationToken)
     {
         // Validation, derived calculations, normalization.
         // Throws here become 4xx errors automatically.
-        if (entity.Price < 0)
-            throw new ShiftEntityException(
-                new Message(""Error"", ""Price cannot be negative""));
-        return default;
-    }
+        foreach (var row in rows)
+            if (row.Entity.Price < 0)
+                throw new ShiftEntityException(
+                    new Message(""Error"", ""Price cannot be negative""));
 
-    public ValueTask AfterSaveAsync(Product entity, ActionTypes action)
-    {
-        // Side effects: send a notification, write to a queue, log to audit.
-        // Runs INSIDE a transaction — if you throw here, the SaveChanges
-        // is rolled back too.
-        return default;
+        return ValueTask.CompletedTask;
     }
+}
+
+// In the DbContext: declared here, it runs in every host that saves a product.
+protected override void ConfigureSaveHandlers(SaveHandlerSet handlers)
+{
+    base.ConfigureSaveHandlers(handlers);
+    handlers.Add<ProductChecks>();
 }")" />
 
     <p>
-        The framework discovers these interfaces with a runtime check
-        (<code>this is IShiftEntityHasBeforeSaveHook&lt;T&gt;</code>) in the
-        repository's constructor. There's no registration step — implement the
-        interface and the hook runs.
+        A handler is not part of the repository. It runs for <b>every</b> save of
+        the entity: the repository's, a plain <code>SaveChanges</code> in a
+        service, a seeder's. What needs the request itself — the DTO, the caller's
+        permissions — stays in the repository's <code>UpsertAsync</code> and
+        <code>DeleteAsync</code>.
     </p>
 
-    <DocCallout Type="DocCalloutType.Warning">
-        Implementing <code>AfterSaveAsync</code> changes the save path: the
-        framework wraps <code>SaveChangesAsync</code> + your <code>AfterSave</code>
-        in an explicit transaction so that a failure in <code>AfterSave</code>
-        rolls the database write back too. This adds a small amount of overhead
-        compared to repositories without an AfterSave hook (which use EF's
-        implicit transaction). Don't add an empty <code>AfterSaveAsync</code>
-        "just in case" — only implement it when you actually need transactional
-        side effects.
+    <DocCallout Type="DocCalloutType.Tip">
+        There are four stages: before save, after save, before commit and after
+        commit. A call to another system belongs after the commit. The
+        <MudLink Href="/concepts/save-handlers">save handlers</MudLink> page
+        covers them all.
     </DocCallout>
 </DocSection>
 
@@ -165,7 +160,7 @@ public class ProductController : ShiftEntitySecureControllerAsync<
         <li>Optional uniqueness enforcement via <code>IEntityHasUniqueHash</code></li>
         <li>Friendly error handling that turns SQL constraint violations into typed <code>409 Conflict</code> responses</li>
         <li>OData query translation for efficient list endpoints</li>
-        <li>Hooks for custom validation and side effects</li>
+        <li>Save handlers for custom validation and side effects</li>
         <li>Default data-level access filtering (e.g. "only show rows belonging to the user's company")</li>
     </ul>
 
@@ -178,7 +173,9 @@ public class ProductController : ShiftEntitySecureControllerAsync<
 
 <DocSection Title="What's next">
     <p>
-        The next page covers the
+        The next page covers
+        <MudLink Href="/concepts/save-handlers">save handlers</MudLink>, your own
+        code at a stage of every save. After it comes the
         <MudLink Href="/concepts/mapping-abstraction">mapping abstraction</MudLink> —
         how the repository translates between entities and DTOs, the four maps
         ShiftMapper declares for every repository with no code at all, the one
